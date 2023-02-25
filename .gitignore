@@ -1,0 +1,12 @@
+##kernel formats
+*.bin
+*.iso
+
+##build formats
+*.obj
+*.o
+
+##kernel build dir
+dist/
+##object build dir
+build/
