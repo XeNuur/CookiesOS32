@@ -5,16 +5,10 @@ void paging_map(uint32_t virt, uint32_t phys) {
 	for(int i = 0; i < 1024; i++)
 	{
 		last_page->entries[i] = phys | 3;
-		phys += 4096;
+		phys += PAGE_SIZE;
 	}
 	page_directory->entries[id] = ((uint32_t)last_page) | 3;
-	last_page = (PageTable*)(((uint32_t)last_page) + 4096);
-}
-
-uint32_t paging_map_onheap(uint32_t virt) {
-        uint32_t frame = frame_alloc();
-        paging_map(virt, frame);
-        return frame;
+	last_page = (PageTable*)(((uint32_t)last_page) + PAGE_SIZE);
 }
 
 uint32_t *paging_page_get(uint32_t virt) {
@@ -25,7 +19,6 @@ uint32_t *paging_page_get(uint32_t virt) {
 }
 
 void paging_init() {
-        page_directory = (PageDirectory*)0x400000;
 	last_page = (PageTable *)0x400000 + 0x4000;
 
 	for(int i = 0; i < 1024; i++) {

@@ -3,13 +3,14 @@
 #include <x86/memory.h>
 #include "frame.h"
 
-extern uint32_t krnl_end;
-
 /* Paging now will be really simple
  * we reserve 0-8MB for kernel stuff
  * heap will be from approx 1mb to 4mb
  * and paging stuff will be from 4mb
  */
+#define PAGING_MEM_START (0x400000)
+#define PAGE_SIZE (4096)
+
 #define PD_INDEX(address) ((address) >> 22)
 #define PT_INDEX(address) (((address) >> 12) & 0x3FF) // Max index 1023 = 0x3FF
 #define PAGE_ALIGN(addr) ((((uint32_t)(addr)) & 0xFFFFF000) + 0x1000)
@@ -28,8 +29,8 @@ typedef struct {
    uint32_t entries[1024];
 } PageDirectory;
 
-static PageDirectory *page_directory = 0;
-static PageTable *last_page = 0;
+static PageDirectory *page_directory = (PageDirectory*)PAGING_MEM_START;
+static PageTable *last_page = (PageTable *)PAGING_MEM_START + 0x4000;
 
 void paging_map(uint32_t virt, uint32_t phys);
 uint32_t *paging_page_get(uint32_t virt);

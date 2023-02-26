@@ -24,5 +24,6 @@ void yeel(char* msg) {
 
    term_setcolor(vga_entry_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLUE));
    term_writestring(msg);
+   term_putchar('\n');
    term_setcolor(VGA_COLOR_WHITE);
 }

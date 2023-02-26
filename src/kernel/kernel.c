@@ -3,6 +3,7 @@
 #include "trap.h"
 #include "paging.h"
 #include "frame.h"
+#include "kheap.h"
 
 #include <x86/idt.h>
 #include <x86/gdt.h>
@@ -54,6 +55,18 @@ int kernel_main(void) {
         term_setcolor(VGA_COLOR_WHITE);
 	term_writestring("Krnl end: ");term_puthex(krnl_end); term_putchar('\n');
         //term_puthex(frame_alloc()); term_putchar('\n');
-	term_writestring("For Dbg only: ");term_puthex((uint32_t)paging_page_get(0x69420)); term_putchar('\n');
+
+        void *ptr1 = malloc(32);
+	term_writestring("d: ");term_puthex(ptr1); term_putchar('\n');
+        free(ptr1);
+
+        void *ptr2 = malloc(28);
+	term_writestring("d: ");term_puthex(ptr2); term_putchar('\n');
+
+        void *ptr3 = malloc(16);
+	term_writestring("d: ");term_puthex(ptr3); term_putchar('\n');
+        free(ptr2);
+        free(ptr3);
+
         return 0;
 }
