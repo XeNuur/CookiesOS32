@@ -9,3 +9,6 @@ void exception_page_fault(struct interrupt_frame*);
 
 void __attribute__ ((interrupt))interrupt_pit_timer(struct interrupt_frame*);
 void __attribute__ ((interrupt))interrupt_kb_timer(struct interrupt_frame*);
+
+void __attribute__ ((interrupt))ata_interrupt_primary_bus(struct interrupt_frame*);
+void __attribute__ ((interrupt))ata_interrupt_secondary_bus(struct interrupt_frame*);

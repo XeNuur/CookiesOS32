@@ -29,6 +29,15 @@ void interrupt_pit_timer(struct interrupt_frame* frame) {
 }
 
 void interrupt_kb_timer(struct interrupt_frame* frame) {
-   //term_putchar(x86_inb(0x60));
+   term_putchar(x86_inb(0x60));
    pic_send_eoi(1);
 }
+
+void ata_interrupt_primary_bus(struct interrupt_frame* frame) {
+   pic_send_eoi(14);
+}
+
+void ata_interrupt_secondary_bus(struct interrupt_frame* frame) {
+   pic_send_eoi(15);
+}
+

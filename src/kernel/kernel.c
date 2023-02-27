@@ -49,7 +49,7 @@ int kernel_main(void) {
         paging_init();
 
 	term_writestring("initing... ATA driver\n");
-        ata_init();
+        ata_init(0x20);
 
         x86_int_on();
         term_setcolor(VGA_COLOR_LIGHT_BLUE);

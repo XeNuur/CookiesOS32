@@ -3,15 +3,10 @@
 #include <x86/pic.h>
 #include <x86/idt.h>
 #include "../kernel/panic.h"
+#include "../kernel/trap.h"
 
 #define ATA_ERR_BUS_FETCH   (-1)
 #define ATA_ERR_DRIVE_FETCH (-2)
-
-/*
-struct intr;
-void __attribute__ ((interrupt)) _ata_interrupt_primary_bus(struct intr*);
-void __attribute__ ((interrupt)) _ata_interrupt_secondary_bus(struct intr*);
-*/
 
 //check for existment
 uint8_t ata_pm = 0;
@@ -53,8 +48,13 @@ void _ata_check() {
       yell("ata device faliure");
 }
 
-void ata_init() {
+void ata_init(uint8_t pic_loc) {
    //set_idt_gate
+   set_idt_gate(pic_loc+14, ata_interrupt_primary_bus, INT_GATE_FLAGS);
+   set_idt_gate(pic_loc+15, ata_interrupt_secondary_bus, INT_GATE_FLAGS);
+   pic_IRQ_remove_mask(14);
+   pic_IRQ_remove_mask(15);
+
    uint8_t status = _ide_identify(ATA_MASTER_HD);
    if(status == ATA_ERR_BUS_FETCH) {
       yell("Can't fetch ata bus");

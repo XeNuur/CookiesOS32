@@ -2,6 +2,7 @@
     romimage:        file=/usr/share/bochs/BIOS-bochs-latest
     vgaromimage:     file=/usr/share/bochs/VGABIOS-lgpl-latest
     ata0-master:     type=cdrom, path=./dist/x86/kernel.iso, status=inserted
+    ata1-master:     type=disk, path=./dist/x86/hard_drive.img , status=inserted
     boot:            cdrom
     log:             bochslog.txt
     clock:           sync=realtime, time0=local
