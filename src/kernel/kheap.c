@@ -60,11 +60,11 @@ create_new_header:
 void free(void* addr) {
    KheapHeader* hh_ptr = addr-sizeof(KheapHeader);
    if(hh_ptr->magic_number != MAGIC_KHEAP) {
-      yeel("free(...): magic number mismatch");
+      yell("free(...): magic number mismatch");
       return;
    }
    if(hh_ptr->freed)
-      yeel("free(...): double free detected!");
+      yell("free(...): double free detected!");
    hh_ptr->freed = 1;
 }
 

@@ -10,6 +10,8 @@
 #include <x86/pic.h>
 #include <x86/io.h>
 
+#include "../drivers/ata.h"
+
 #define COS32_VER "v0.0.5"
 
 extern uint32_t krnl_end;
@@ -40,22 +42,24 @@ int kernel_main(void) {
         pic_IRQ_remove_mask(0); //timer
         pic_IRQ_remove_mask(1); //keyboard
         pic_IRQ_remove_mask(2); // slave PIC chip
-	term_writestring("inited interrupts ended successfully\n");
+	term_writestring("initing... Interrupts\n");
 
 	term_writestring("initing... Paging\n");
         frame_init();
         paging_init();
 
+	term_writestring("initing... ATA driver\n");
+        ata_init();
+
         x86_int_on();
         term_setcolor(VGA_COLOR_LIGHT_BLUE);
-	term_writestring("CookiesOS32! "COS32_VER"\n");
-	term_writestring("Created by Jan Lomozik\n");
-	term_writestring("Super Cool Os Im guess?\n");
+	term_writestring("\nCookiesOS32! "COS32_VER"\n");
+	term_writestring("Created by Jan Lomozik\n\n");
 
         term_setcolor(VGA_COLOR_WHITE);
 	term_writestring("Krnl end: ");term_puthex(krnl_end); term_putchar('\n');
         //term_puthex(frame_alloc()); term_putchar('\n');
-
+        term_writestring("\n[i]testing malloc: \n");
         void *ptr1 = malloc(32);
 	term_writestring("d: ");term_puthex(ptr1); term_putchar('\n');
         free(ptr1);
@@ -68,5 +72,11 @@ int kernel_main(void) {
         free(ptr2);
         free(ptr3);
 
+        term_writestring("\n[i]testing ata drive: \n");
+        for(size_t i=0; i<3; i++) {
+            uint8_t block = ata_read_block(i);
+            term_puthex(block); term_putchar(' ');
+        }
+        term_putchar('\n');
         return 0;
 }

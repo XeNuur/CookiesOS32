@@ -9,11 +9,11 @@ void general_exception_handler_err(struct interrupt_frame* frame) {
 }
 
 void general_exception_handler(struct interrupt_frame* frame) {
-   yeel("An unexpected error happened!");
+   yell("An unexpected error happened!");
 }
 
 void exception_div_by_zero(struct interrupt_frame* frame) {
-   yeel("DIVITION BY ZERO");
+   yell("DIVITION BY ZERO");
 }
 
 void exception_page_fault(struct interrupt_frame* frame) {
