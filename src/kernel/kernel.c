@@ -11,14 +11,33 @@
 #include <x86/io.h>
 
 #include "../drivers/ata.h"
+#include "../utils/multiboot.h"
 
-#define COS32_VER "v0.0.5"
+#define COS32_VER "v0.0.7"
 
-extern uint32_t krnl_end;
-
-int kernel_main(void) {
+int kernel_main(multiboot_info_t *mbi) {
         term_init();
 	term_writestring("CookiesOS32 init start!\n");
+        term_setcolor(VGA_COLOR_LIGHT_GREEN);
+
+	term_writestring("initing... MEMORY MAP\n");
+        term_setcolor(VGA_COLOR_WHITE);
+
+        if(!(mbi->flags >> 6 & 0x1)) {
+            yell("invalid memory map given by GRUB'en");
+        }
+
+        term_writestring("UPPER MEM SIZE: "); term_puthex(mbi->mem_upper); term_putchar('\n');
+        term_writestring("LOWER MEM SIZE: "); term_puthex(mbi->mem_lower); term_putchar('\n');
+        for(int i=0; i < mbi->mmap_length; i+= sizeof(multiboot_memory_map_t)) {
+            multiboot_memory_map_t* mmm = (multiboot_memory_map_t*)(mbi->mmap_addr+i);
+
+	    term_writestring("Start: "); term_puthex(mmm->base_addr);
+	    term_writestring("| Len:  "); term_puthex(mmm->length);
+	    term_writestring("| Size: "); term_puthex(mmm->size);
+	    term_writestring("| Type: "); term_puthex(mmm->type);
+            term_putchar('\n');
+        }
         term_setcolor(VGA_COLOR_LIGHT_GREEN);
 
 	term_writestring("initing... GDT\n");
@@ -37,8 +56,9 @@ int kernel_main(void) {
         pic_disable();
         pic_init();
 
-        set_idt_gate(0x20, interrupt_pit_timer, INT_GATE_FLAGS);
-        set_idt_gate(0x20+1, interrupt_kb_timer, INT_GATE_FLAGS);
+        const uint8_t pic_loc = 0x20;
+        set_idt_gate(pic_loc, interrupt_pit_timer, INT_GATE_FLAGS);
+        set_idt_gate(pic_loc+1, interrupt_kb_timer, INT_GATE_FLAGS);
         pic_IRQ_remove_mask(0); //timer
         pic_IRQ_remove_mask(1); //keyboard
         pic_IRQ_remove_mask(2); // slave PIC chip
@@ -49,15 +69,14 @@ int kernel_main(void) {
         paging_init();
 
 	term_writestring("initing... ATA driver\n");
-        ata_init(0x20);
+        ata_init(pic_loc);
 
         x86_int_on();
         term_setcolor(VGA_COLOR_LIGHT_BLUE);
 	term_writestring("\nCookiesOS32! "COS32_VER"\n");
-	term_writestring("Created by Jan Lomozik\n\n");
-
+	term_writestring("Created by Jan Lomozik\n");
         term_setcolor(VGA_COLOR_WHITE);
-	term_writestring("Krnl end: ");term_puthex(krnl_end); term_putchar('\n');
+
         //term_puthex(frame_alloc()); term_putchar('\n');
         term_writestring("\n[i]testing malloc: \n");
         void *ptr1 = malloc(32);

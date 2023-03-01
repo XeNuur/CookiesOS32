@@ -6,6 +6,7 @@ extern kernel_main
 section .text
 bits 32
 start:
+        push ebx
         call kernel_main
         ;check if kernel_main() returned error code
         cmp eax, 0

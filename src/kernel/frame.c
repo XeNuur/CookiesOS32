@@ -1,64 +1,65 @@
 #include "frame.h"
 #include "panic.h"
+#include <string.h>
 
 extern uint32_t krnl_end;
 
-//macros for bitset algorythm
-#define INDEX_FROM_BIT(a) (a/(8*4))
-#define OFFSET_FROM_BIT(a) (a%(8*4))
-
-void _frame_get_(uint32_t addr, uint32_t* idx, uint32_t* off) {
-   uint32_t frame = addr/0x1000;
-   *idx = INDEX_FROM_BIT(frame);
-   *off = OFFSET_FROM_BIT(frame);
+void frame_set(uint32_t i) {
+   frames[i/ 32] |= (1 << (i%32));  
 }
 
-void frame_set(uint32_t addr) {
-   uint32_t idx = 0, off = 0;
-   _frame_get_(addr, &idx, &off);
-   frames[idx] |= (0x1 << off);  
+void frame_clear(uint32_t i) {
+   frames[i/ 32] &= ~(1 << (i%32));  
 }
 
-void frame_clear(uint32_t addr) {
-   uint32_t idx = 0, off = 0;
-   _frame_get_(addr, &idx, &off);
-   frames[idx] &= ~(0x1 << off);
+int frame_test(uint32_t i) {
+   return frames[i/ 32] & (1 << (i%32));  
 }
 
-int frame_test(uint32_t addr) {
-   uint32_t idx = 0, off = 0;
-   _frame_get_(addr, &idx, &off);
-   return (frames[idx] & (0x1 << off));
-}
+uint32_t frame_frist_free(uint32_t blocks_num) {
+   uint32_t cnt = 0;
+   uint32_t bi=0, bj=0; 
 
-uint32_t frame_frist_free() {
-   uint32_t i, j;
-   for (i = 0; i < INDEX_FROM_BIT(frames_size); i++) {
+   for (uint32_t i = 0; i < frames_max / 32; i++) {
        if (frames[i] != 0xFFFFFFFF) { // nothing free, exit early.
-           for (j = 0; j < 32; j++) { // at least one bit is free here.
+           for (uint32_t j = 0; j < 32; j++) { // at least one bit is free here.
                uint32_t toTest = 0x1 << j;
-               if ( !(frames[i]&toTest) ) 
-                   return i*32+j;
+               if ( !(frames[i]&toTest) ) {
+                  if(!cnt)
+                     bi=i; bj=j;
+                  ++cnt;
+                  if(cnt >= blocks_num)
+                     return bi*32+bj;
+                  continue;
+               }
+               cnt = 0;
            }
        }
    }
+   return -1;
 }
 
-uint32_t frame_alloc() {
-   uint32_t idx = frame_frist_free();
-   frame_set(idx*0x1000);
-   if(idx == (uint32_t)-1) {
+uint32_t frame_alloc_ex(uint32_t blocks_num) {
+   uint32_t idx = frame_frist_free(blocks_num);
+   if(idx == -1) {
       panic("Out of frames");
    }
-   return idx;
+   for(uint32_t i=0; i<blocks_num; i++)
+      frame_set(idx+i);
+   uint32_t phys_addr = idx * FRAME_BLOCK_SIZE;
+   return phys_addr;
 }
 
-void frame_free(uint32_t addr) {
-   frame_clear(addr);
+void frame_free_ex(uint32_t addr, uint32_t blocks_num) {
+   uint32_t index = addr / FRAME_BLOCK_SIZE;
+   for(uint32_t i=0; i<blocks_num; i++)
+      frame_clear(index);
 }
 
 void frame_init() {
-   frames_size = MEM_END_ADR/0x1000;
-   frames = (uint32_t*)(krnl_end + INDEX_FROM_BIT(frames_size));
+   frames = (uint32_t*)MEM_START_ADR;
+   frames_max = MEM_END_ADR/ FRAME_BLOCK_SIZE;
+   
+   memset(frames, 0x0, frames_max / FRAME_BLOCKS_PER_BYTE);
 }
 

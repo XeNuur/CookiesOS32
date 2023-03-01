@@ -1,8 +1,3 @@
-;int get_next_block(MemoryBlock *blk, uint32_t *cnt_id);
-global get_next_block
-get_next_block:
-   ret
-
 ;void __attribute__((cdecl)) load_page_directory(uint32_t*);
 global load_page_directory
 load_page_directory:
@@ -24,3 +19,4 @@ global read_cr2
 read_cr2:
    mov eax, cr2
    ret
+

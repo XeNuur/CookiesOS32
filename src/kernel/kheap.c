@@ -5,7 +5,7 @@
 #include "framebuffer.h"
 
 extern uint32_t krnl_end;
-uint32_t* curr_addr = &krnl_end;
+uint32_t* curr_addr = (uint32_t*)0x2000;
 
 KheapHeader *frist_hh = 0;
 KheapHeader *last_hh = 0;
