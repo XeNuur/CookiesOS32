@@ -24,12 +24,12 @@ void exception_page_fault(struct interrupt_frame* frame) {
 }
 
 void interrupt_pit_timer(struct interrupt_frame* frame) {
-   term_putchar('.');
+   //term_putchar('.');
    pic_send_eoi(0);
 }
 
 void interrupt_kb_timer(struct interrupt_frame* frame) {
-   term_putchar(x86_inb(0x60));
+   //term_putchar(x86_inb(0x60));
    pic_send_eoi(1);
 }
 

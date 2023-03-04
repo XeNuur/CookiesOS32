@@ -26,9 +26,8 @@ void term_putchar(char c) {
         x86_outb(0xE9, c);
         switch(c) {
             case '\n':
-               ++term_row;
                term_column = 0;
-               return;
+               goto newline_callback;
             default:
 	       term_put_char_at(c, term_color, term_column, term_row);
         }
@@ -36,20 +35,19 @@ void term_putchar(char c) {
 	if (!(++term_column >= VGA_WIDTH))
                 return;
         term_column = 0;
+newline_callback:
         if (!(++term_row >= VGA_HEIGHT))
                 return;
         term_row = VGA_HEIGHT-1;
         term_newline();
 }
  
-void term_write(const char* data, size_t size) 
-{
+void term_write(const char* data, size_t size) {
 	for (size_t i = 0; i < size; i++)
 		term_putchar(data[i]);
 }
  
-void term_writestring(const char* data) 
-{
+void term_writestring(const char* data) {
 	term_write(data, strlen(data));
 }
 

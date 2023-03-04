@@ -2,8 +2,6 @@
 #include "panic.h"
 #include <string.h>
 
-extern uint32_t krnl_end;
-
 void frame_set(uint32_t i) {
    frames[i/ 32] |= (1 << (i%32));  
 }
@@ -56,9 +54,9 @@ void frame_free_ex(uint32_t addr, uint32_t blocks_num) {
       frame_clear(index);
 }
 
-void frame_init() {
-   frames = (uint32_t*)MEM_START_ADR;
-   frames_max = MEM_END_ADR/ FRAME_BLOCK_SIZE;
+void frame_init(uint32_t start_addr, uint32_t end_addr) {
+   frames = (uint32_t*)start_addr;
+   frames_max = end_addr/ FRAME_BLOCK_SIZE;
    
    memset(frames, 0x0, frames_max / FRAME_BLOCKS_PER_BYTE);
 }

@@ -20,20 +20,25 @@ int kernel_main(multiboot_info_t *mbi) {
 	term_writestring("CookiesOS32 init start!\n");
         term_setcolor(VGA_COLOR_LIGHT_GREEN);
 
-	term_writestring("initing... MEMORY MAP\n");
-        term_setcolor(VGA_COLOR_WHITE);
-
+	term_writestring("initing... MEMORY MAP:\n");
+        term_setcolor(VGA_COLOR_GREEN);
         if(!(mbi->flags >> 6 & 0x1)) {
             yell("invalid memory map given by GRUB'en");
         }
+        multiboot_memory_map_t* frame_part = (multiboot_memory_map_t*)(mbi->mmap_addr);
+        uint32_t frame_start_addr = (frame_part->addr < 0x800) ?0x800 :frame_part->addr;
+        uint32_t frame_end_addr = frame_part->addr + frame_part->len;
+        if(frame_end_addr < frame_start_addr)
+           panic("Invalid memory region part propotions (invalid grub memory map?)");
 
         term_writestring("UPPER MEM SIZE: "); term_puthex(mbi->mem_upper); term_putchar('\n');
         term_writestring("LOWER MEM SIZE: "); term_puthex(mbi->mem_lower); term_putchar('\n');
+        term_writestring("MEM MAP: \n");
         for(int i=0; i < mbi->mmap_length; i+= sizeof(multiboot_memory_map_t)) {
             multiboot_memory_map_t* mmm = (multiboot_memory_map_t*)(mbi->mmap_addr+i);
 
-	    term_writestring("Start: "); term_puthex(mmm->base_addr);
-	    term_writestring("| Len:  "); term_puthex(mmm->length);
+	    term_writestring("Start: "); term_puthex(mmm->addr);
+	    term_writestring("| Len:  "); term_puthex(mmm->len);
 	    term_writestring("| Size: "); term_puthex(mmm->size);
 	    term_writestring("| Type: "); term_puthex(mmm->type);
             term_putchar('\n');
@@ -65,7 +70,7 @@ int kernel_main(multiboot_info_t *mbi) {
 	term_writestring("initing... Interrupts\n");
 
 	term_writestring("initing... Paging\n");
-        frame_init();
+        frame_init(frame_start_addr, frame_end_addr);
         paging_init();
 
 	term_writestring("initing... ATA driver\n");
@@ -92,10 +97,11 @@ int kernel_main(multiboot_info_t *mbi) {
         free(ptr3);
 
         term_writestring("\n[i]testing ata drive: \n");
-        for(size_t i=0; i<3; i++) {
+        for(size_t i=0; i<10; i++) {
             uint8_t block = ata_read_block(i);
             term_puthex(block); term_putchar(' ');
         }
         term_putchar('\n');
         return 0;
 }
+

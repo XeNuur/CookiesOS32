@@ -18,6 +18,8 @@ void panic(char* msg) {
 }
 
 void yell(char* msg) {
+   term_reset_cursor();
+
    term_setcolor(vga_entry_color(VGA_COLOR_RED, VGA_COLOR_BLUE));
    term_writestring("[INTERNAL ERROR]: \n");
    term_writestring("reason: \n");
