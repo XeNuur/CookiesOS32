@@ -11,6 +11,7 @@
 #include <x86/io.h>
 
 #include "../drivers/ata.h"
+#include "../drivers/keyboard.h"
 #include "../utils/multiboot.h"
 
 #define COS32_VER "v0.0.7"
@@ -63,9 +64,7 @@ int kernel_main(multiboot_info_t *mbi) {
 
         const uint8_t pic_loc = 0x20;
         set_idt_gate(pic_loc, interrupt_pit_timer, INT_GATE_FLAGS);
-        set_idt_gate(pic_loc+1, interrupt_kb_timer, INT_GATE_FLAGS);
         pic_IRQ_remove_mask(0); //timer
-        pic_IRQ_remove_mask(1); //keyboard
         pic_IRQ_remove_mask(2); // slave PIC chip
 	term_writestring("initing... Interrupts\n");
 
@@ -75,6 +74,9 @@ int kernel_main(multiboot_info_t *mbi) {
 
 	term_writestring("initing... ATA driver\n");
         ata_init(pic_loc);
+
+	term_writestring("initing... Keyboard driver\n");
+        kb_init(pic_loc);
 
         x86_int_on();
         term_setcolor(VGA_COLOR_LIGHT_BLUE);
@@ -102,6 +104,11 @@ int kernel_main(multiboot_info_t *mbi) {
             term_puthex(block); term_putchar(' ');
         }
         term_putchar('\n');
+
+        for(;;) {
+            char ch = kb_wait_get();
+            term_putchar(ch);
+        }
         return 0;
 }
 

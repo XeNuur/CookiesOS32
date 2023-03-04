@@ -1,5 +1,6 @@
 #include "kheap.h"
 #include "panic.h"
+#include <string.h>
 
 //debug purposes!
 #include "framebuffer.h"
@@ -66,5 +67,12 @@ void free(void* addr) {
    if(hh_ptr->freed)
       yell("free(...): double free detected!");
    hh_ptr->freed = 1;
+}
+
+void* realloc(void* addr, size_t size) {
+   void* new_addr = malloc(size);
+   memcpy(new_addr, addr, size);
+   free(addr);
+   return new_addr;
 }
 

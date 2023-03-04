@@ -28,3 +28,12 @@ void __attribute__((cdecl)) load_idt(IdtR_t*);
 void set_idt_gate(int index, void* isr, uint8_t flags);
 void idt_init();
 
+//These are for traps & exceptios
+typedef struct
+{
+    unsigned int gs, fs, es, ds;      /* pushed the segs last */
+    unsigned int edi, esi, ebp, esp, ebx, edx, ecx, eax;  /* pushed by 'pusha' */
+    unsigned int int_no, err_code;    /* our 'push byte #' and ecodes do this */
+    unsigned int eip, cs, eflags, useresp, ss;   /* pushed by the processor automatically */ 
+} Registers;
+

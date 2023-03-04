@@ -14,4 +14,5 @@ typedef struct kheap_header_t{
 } KheapHeader;
 
 void* malloc(size_t size);
+void* realloc(void*, size_t size);
 void free(void*);
