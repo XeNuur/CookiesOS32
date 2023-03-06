@@ -13,13 +13,16 @@ uint8_t ata_pm = 0;
 uint8_t ata_ps = 0;
 
 void ata_interrupt_primary_bus() {
+   _INT_BEGIN;
    pic_send_eoi(14);
+   _INT_END;
 }
 
 void ata_interrupt_secondary_bus() {
+   _INT_BEGIN;
    pic_send_eoi(15);
+   _INT_END;
 }
-
 
 void _ata_wait_bsy() { //Wait for bsy to be 0
    while(x86_inb(0x1F7)&ATA_STATUS_BSY);

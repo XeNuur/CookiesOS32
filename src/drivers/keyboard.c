@@ -1,4 +1,5 @@
 #include "keyboard.h"
+#include "../kernel/framebuffer.h"
 #include <x86/pic.h>
 #include <x86/idt.h>
 #include <x86/io.h>
@@ -52,30 +53,43 @@ unsigned char kbdus[128] =
 };	
 
 char current_ch = 0;
+
+char buffer[255];
+int handled_index = 0;
 int is_handled = 1;
 
-void kb_interrupt_hander() {
+void kb_interrupt_hander(Registers* regs) {
+   _INT_BEGIN;
+
    unsigned char code = x86_inb(0x60);
-   if(code & 0x80) {
-      //special chars
-   }
+   if(code & 0x80) //special chars
+      goto end;
+
    current_ch = kbdus[code];
+   buffer[handled_index++] = current_ch;
    is_handled = 0;
+
+end:
    pic_send_eoi(1);
+   _INT_END;
 }
 
 void kb_init(uint8_t pic_loc) {
-   pic_IRQ_remove_mask(1); //keyboard
    set_idt_gate(pic_loc+1, kb_interrupt_hander, INT_GATE_FLAGS);
+   pic_IRQ_remove_mask(1); //keyboard
 }
 
-char kb_get_curr() {
-   return current_ch;
+char kb_get_curr() { return current_ch; }
+
+char kb_get() {
+   if(!handled_index)
+      return kb_get_curr();
+   return buffer[--handled_index];
 }
 
 char kb_wait_get() {
-   while(is_handled) {};
+   while(is_handled);
    is_handled = 1;
-   return kb_get_curr();
+   return kb_get();
 }
 

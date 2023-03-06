@@ -24,12 +24,9 @@ void exception_page_fault(Registers* frame) {
 }
 
 void interrupt_pit_timer(Registers* frame) {
+   _INT_BEGIN;
    //term_putchar('.');
    pic_send_eoi(0);
-}
-
-void interrupt_kb_timer(Registers* frame) {
-   //term_putchar(x86_inb(0x60));
-   pic_send_eoi(1);
+   _INT_END;
 }
 

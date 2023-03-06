@@ -5,6 +5,9 @@
 #define INT_GATE_FLAGS      0x8E    // P = 1, DPL = 00, S = 0, Type = 1110 (32bit interrupt gate)
 #define INT_GATE_USER_FLAGS 0xEE    // P = 1, DPL = 11, S = 0, Type = 1110 (32bit interrupt gate, called from PL 3)
 
+#define _INT_BEGIN __asm__("pusha");
+#define _INT_END __asm__("popa; leave; iret"); 
+                                   
 //idt entry
 typedef struct{
 	uint16_t    isr_low;      // The lower 16 bits of the ISR's address
@@ -29,8 +32,7 @@ void set_idt_gate(int index, void* isr, uint8_t flags);
 void idt_init();
 
 //These are for traps & exceptios
-typedef struct
-{
+typedef struct {
     unsigned int gs, fs, es, ds;      /* pushed the segs last */
     unsigned int edi, esi, ebp, esp, ebx, edx, ecx, eax;  /* pushed by 'pusha' */
     unsigned int int_no, err_code;    /* our 'push byte #' and ecodes do this */
