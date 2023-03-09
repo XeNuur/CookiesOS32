@@ -4,9 +4,6 @@
 #define FRAME_BLOCKS_PER_BYTE    (8)
 #define FRAME_BLOCK_SIZE	(4096)
 
-#define MEM_END_ADR (0x500000) // Let's assume that pc that we are currently running have 16mb
-#define MEM_START_ADR (0x800) // Let's assume that pc that we are currently running have 16mb
-
 static uint32_t *frames = 0;
 static uint32_t frames_max = 0;
 static uint32_t frames_size = 0;

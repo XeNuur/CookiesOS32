@@ -1,6 +1,6 @@
 #include "framebuffer.h"
 
-void panic(char* msg) {
+void panic(char* msg, ...) {
    term_reset_cursor();
 
    term_setcolor(vga_entry_color(VGA_COLOR_RED, VGA_COLOR_BLUE));
@@ -8,7 +8,11 @@ void panic(char* msg) {
    term_writestring("reason: \n");
 
    term_setcolor(vga_entry_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLUE));
-   term_writestring(msg);
+
+   va_list ap;
+   va_start(ap, msg);
+   term_vprintf(msg, ap);
+   va_end(ap);
 
    term_setcolor(vga_entry_color(VGA_COLOR_RED, VGA_COLOR_BLUE));
    term_writestring("\n...hanging...\n");
@@ -17,7 +21,7 @@ void panic(char* msg) {
    while(true){};
 }
 
-void yell(char* msg) {
+void yell(char* msg, ...) {
    term_reset_cursor();
 
    term_setcolor(vga_entry_color(VGA_COLOR_RED, VGA_COLOR_BLUE));
@@ -25,7 +29,13 @@ void yell(char* msg) {
    term_writestring("reason: \n");
 
    term_setcolor(vga_entry_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLUE));
-   term_writestring(msg);
+
+   va_list ap;
+   va_start(ap, msg);
+   term_vprintf(msg, ap);
+   va_end(ap);
+
    term_putchar('\n');
    term_setcolor(VGA_COLOR_WHITE);
 }
+

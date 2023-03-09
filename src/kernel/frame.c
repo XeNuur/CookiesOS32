@@ -2,6 +2,8 @@
 #include "panic.h"
 #include <string.h>
 
+uint32_t alloced_frames = 0;
+
 void frame_set(uint32_t i) {
    frames[i/ 32] |= (1 << (i%32));  
 }
@@ -39,12 +41,13 @@ uint32_t frame_frist_free(uint32_t blocks_num) {
 
 uint32_t frame_alloc_ex(uint32_t blocks_num) {
    uint32_t idx = frame_frist_free(blocks_num);
-   if(idx == -1) {
-      panic("Out of frames");
-   }
+   if(idx == -1)
+      panic("Out of frames:\n Allocated frames: %x\n Max frames: %x", alloced_frames, frames_max);
+
    for(uint32_t i=0; i<blocks_num; i++)
       frame_set(idx+i);
    uint32_t phys_addr = idx * FRAME_BLOCK_SIZE;
+   alloced_frames++;
    return phys_addr;
 }
 
@@ -52,6 +55,7 @@ void frame_free_ex(uint32_t addr, uint32_t blocks_num) {
    uint32_t index = addr / FRAME_BLOCK_SIZE;
    for(uint32_t i=0; i<blocks_num; i++)
       frame_clear(index);
+   alloced_frames--;
 }
 
 void frame_init(uint32_t start_addr, uint32_t end_addr) {

@@ -16,7 +16,7 @@
 #include "../drivers/keyboard.h"
 #include "../utils/multiboot.h"
 
-#define COS32_VER "v0.0.8"
+#define COS32_VER "v0.1."
 
 char* mini_shell_prefix = ">> ";
 
@@ -26,10 +26,8 @@ size_t shell_prog_size = 0;
 
 char* help_prog_name = "help";
 void help_prog(void) {
-        for(size_t i=0; i<shell_prog_size; ++i) {
-           term_writestring(shell_prog_names[i]);
-           term_putchar('\n');
-        }
+        for(size_t i=0; i<shell_prog_size; ++i)
+           term_printf("%s\n", shell_prog_names[i]);
 }
 
 char* helloworld_prog_name = "helloworld";
@@ -40,9 +38,9 @@ void helloworld_prog(void) {
 char* ataread_prog_name = "ataread";
 void ataread_prog(void) {
         term_writestring("Reading from ata drive!\n");
-        for(size_t i=0; i<25; i++) {
-            uint8_t block = ata_read_block(i);
-            term_puthex(block); term_putchar(' ');
+        for(size_t i=10; i<20; i++) {
+            uint32_t block = ata_read_block(i);
+            term_printf("%x(%c) ", block, block);
         }
 }
 
@@ -51,16 +49,29 @@ void malloctest_prog(void) {
         term_writestring("Testing malloc: \n");
 
         void *ptr1 = malloc(32);
-	term_writestring("ptr1: ");term_puthex(ptr1); term_putchar('\n');
+        term_printf("ptr1: %x\n", ptr1);
         free(ptr1);
 
         void *ptr2 = malloc(28);
-	term_writestring("ptr2: ");term_puthex(ptr2); term_putchar('\n');
+        term_printf("ptr2: %x\n", ptr2);
 
         void *ptr3 = malloc(16);
-	term_writestring("ptr3: ");term_puthex(ptr3); term_putchar('\n');
+        term_printf("ptr3: %x\n", ptr3);
         free(ptr2);
         free(ptr3);
+}
+
+char* crashme_prog_name = "crashme";
+void crashme_prog(void) {
+   term_writestring("You asked for it!");
+   size_t size = 0x1000;
+
+   int i = 0;
+   for(;;) {
+        i += size; 
+        void *ptr = malloc(size);
+        term_printf("Ptr: %x\nLen: %x\n", ptr, i);
+   }
 }
 
 void mini_shell_add_entry(void (*prog)(void), char* prog_name) {
@@ -74,6 +85,7 @@ void mini_shell(void) {
         mini_shell_add_entry(helloworld_prog, helloworld_prog_name);
         mini_shell_add_entry(ataread_prog, ataread_prog_name); 
         mini_shell_add_entry(malloctest_prog, malloctest_prog_name); 
+        mini_shell_add_entry(crashme_prog, crashme_prog_name); 
         term_writestring(mini_shell_prefix);
 
         char input_buffer[255];
@@ -131,22 +143,25 @@ int kernel_main(multiboot_info_t *mbi) {
             yell("invalid memory map given by GRUB'en");
         }
         multiboot_memory_map_t* frame_part = (multiboot_memory_map_t*)(mbi->mmap_addr);
-        uint32_t frame_start_addr = (frame_part->addr < 0x800) ?0x800 :frame_part->addr;
+        uint32_t frame_start_addr = (frame_part->addr < 0x400) ?0x400 :frame_part->addr;
         uint32_t frame_end_addr = frame_part->addr + frame_part->len;
         if(frame_end_addr < frame_start_addr)
            panic("Invalid memory region part propotions (invalid grub memory map?)");
+        term_printf("UPPER MEM SIZE: %x \n", mbi->mem_upper);
+        term_printf("LOWER MEM SIZE: %x \n", mbi->mem_lower);
 
-        term_writestring("UPPER MEM SIZE: "); term_puthex(mbi->mem_upper); term_putchar('\n');
-        term_writestring("LOWER MEM SIZE: "); term_puthex(mbi->mem_lower); term_putchar('\n');
         term_writestring("MEM MAP: \n");
         for(int i=0; i < mbi->mmap_length; i+= sizeof(multiboot_memory_map_t)) {
             multiboot_memory_map_t* mmm = (multiboot_memory_map_t*)(mbi->mmap_addr+i);
 
-	    term_writestring("Start: "); term_puthex(mmm->addr);
-	    term_writestring("| Len:  "); term_puthex(mmm->len);
-	    term_writestring("| Size: "); term_puthex(mmm->size);
-	    term_writestring("| Type: "); term_puthex(mmm->type);
-            term_putchar('\n');
+            uint32_t addr = mmm->addr;
+            uint32_t len = mmm->len;
+            uint32_t size = mmm->size;
+            uint32_t type = mmm->type;
+
+            term_printf("Start: %x | Len: %x | Size: %x | Type %x \n", 
+                  addr, len, size, type
+            );
         }
         term_setcolor(VGA_COLOR_LIGHT_GREEN);
 

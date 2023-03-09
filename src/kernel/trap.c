@@ -13,14 +13,30 @@ void general_exception_handler(Registers* frame) {
 }
 
 void exception_div_by_zero(Registers* frame) {
-   yell("DIVITION BY ZERO");
+   yell("Division by ZERO");
 }
 
 void exception_page_fault(Registers* frame) {
-   term_setcolor(vga_entry_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK));
-   term_writestring("A addres before tragedy: ");
-   term_puthex(read_cr2()); term_putchar('\n');
-   panic("PAGE FAULT");
+   int present = !(frame->err_code & 0x1); 
+   int rw = frame->err_code & 0x2;           
+   int us = frame->err_code & 0x4;           
+   int reserved = frame->err_code & 0x8;     
+   int id = frame->err_code & 0x10;          
+
+   panic("PAGE FAULT\n"
+         "Caused addres: %x\n"
+         "Raw error code: %x\n\n"
+         "Details:\n"
+         "Present: %x\n"
+         "RW: %x\n"
+         "User-mode: %x\n"
+         "Reserved: %x\n",
+
+         read_cr2(), frame->err_code,
+         present,
+         rw,
+         us,
+         reserved);
 }
 
 void interrupt_pit_timer(Registers* frame) {

@@ -7,3 +7,4 @@ void __attribute__((cdecl)) x86_io_wait(void);
 
 void __attribute__((cdecl)) x86_int_on();
 void __attribute__((cdecl)) x86_int_off();
+

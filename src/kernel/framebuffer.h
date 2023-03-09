@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include "../arch/x86/io.h"
  
 /* Check if the compiler thinks you are targeting the wrong operating system. */
@@ -58,3 +59,7 @@ void term_newline();
 void term_reset_cursor();
 
 void term_puthex(uint32_t);
+void term_printf(const char*, ...);
+void term_vprintf(const char*, va_list arg);
+
+

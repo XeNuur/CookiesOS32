@@ -79,3 +79,37 @@ void term_newline() {
    }
 }
 
+void term_printf(const char* fmt, ...) {
+   va_list ap;
+   va_start(ap, fmt);
+   term_vprintf(fmt, ap);
+   va_end(ap);
+}
+
+void term_vprintf(const char* fmt, va_list arg) {
+   int* arg_ptr = (int*)&fmt;
+   arg_ptr += sizeof(fmt) / sizeof(int);
+
+   while(*fmt) {
+      if(*fmt != '%') {
+         term_putchar(*fmt);
+         fmt++;
+         continue;
+      }
+      fmt++;
+      switch(*fmt) {
+         case 'c':
+            term_putchar(va_arg(arg, int));
+            break;
+         case 's':
+            term_writestring(va_arg(arg, char*));
+            break;
+         case 'x':
+            term_puthex(va_arg(arg, uint32_t));
+            break;
+      }
+      arg_ptr++;
+      fmt++;
+   }
+}
+

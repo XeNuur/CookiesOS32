@@ -1,12 +1,15 @@
 #include "kheap.h"
 #include "panic.h"
+#include "frame.h"
 #include <string.h>
+#include "paging.h"
 
 //debug purposes!
 #include "framebuffer.h"
 
 extern uint32_t krnl_end;
-uint32_t* curr_addr = (uint32_t*)0x2000;
+uint32_t* curr_addr = (uint32_t*)&krnl_end;
+uint32_t max_page_addr = &krnl_end;
 
 KheapHeader *frist_hh = 0;
 KheapHeader *last_hh = 0;
@@ -37,6 +40,7 @@ void* _find_good_block(size_t size, int reset_free_flag) {
    }
 }
 
+
 void* malloc(size_t size) {
    uint32_t abs_size = size;
    uint32_t* addr = curr_addr;
@@ -53,6 +57,17 @@ create_new_header:
    if(!frist_hh)
       frist_hh = curr_addr;
    abs_size += sizeof(KheapHeader);
+
+   if(addr+size < max_page_addr)
+      goto alloc_pages_end;
+   size_t page_num = ((size + sizeof(KheapHeader))/PAGE_SIZE);
+   for(int i=0; i<page_num; ++i)
+      paging_map(addr+i*PAGE_SIZE, frame_alloc());
+
+   uint32_t eof_page_addr = addr+page_num*PAGE_SIZE;
+   if(eof_page_addr > max_page_addr)
+      max_page_addr = eof_page_addr;
+alloc_pages_end:
 
    curr_addr += abs_size;
    return (void*)addr+sizeof(KheapHeader);
