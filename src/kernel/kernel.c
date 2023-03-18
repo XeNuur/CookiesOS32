@@ -38,9 +38,13 @@ void helloworld_prog(void) {
 char* ataread_prog_name = "ataread";
 void ataread_prog(void) {
         term_writestring("Reading from ata drive!\n");
-        for(size_t i=10; i<20; i++) {
-            uint32_t block = ata_read_block(i);
-            term_printf("%x(%c) ", block, block);
+
+        uint16_t block[ATA_SECTOR_SIZE];
+        ata_read_sector(0, block);
+            
+        for(uint32_t i=0; i<ATA_SECTOR_SIZE; ++i) {
+            uint16_t ch = block[i];
+            term_printf("%x(%c) ", ch, ch);
         }
 }
 
@@ -64,7 +68,7 @@ void malloctest_prog(void) {
 char* crashme_prog_name = "crashme";
 void crashme_prog(void) {
    term_writestring("You asked for it!");
-   size_t size = 0x1000;
+   size_t size = 0x500;
 
    int i = 0;
    for(;;) {

@@ -38,6 +38,7 @@
 #define ATA_REG_ALTSTATUS  (0x0C)
 #define ATA_REG_DEVADDRESS (0x0D)
 
+#define ATA_SECTOR_SIZE (256)
+
 void ata_init(uint8_t pic_loc);
-uint8_t ata_read_block(uint32_t lba);
-void ata_read_sector();
+uint8_t ata_read_sector(uint32_t lba, void* data);

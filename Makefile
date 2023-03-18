@@ -34,5 +34,7 @@ build-x86: $(x86_asm_object_files) $(x86_c_object_files)
 	cp dist/x86/kernel.bin targets/x86/iso/boot/kernel.bin && \
 	grub-mkrescue /usr/lib/grub/i386-pc -o dist/x86/kernel.iso targets/x86/iso
 
+	chown 1000:1000 dist/x86/kernel.bin
+
 clean:
 	rm $(x86_c_object_files) $(x86_asm_object_files)

@@ -14,6 +14,13 @@ x86_inb:
    in al, dx
    ret
 
+global x86_inw
+x86_inw:
+   mov dx, [esp + 4]
+   xor eax, eax
+   in ax, dx
+   ret
+
 global x86_io_wait
 x86_io_wait:
    push 0x80 ;An unused port 

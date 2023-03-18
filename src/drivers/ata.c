@@ -4,13 +4,15 @@
 #include <x86/idt.h>
 #include "../kernel/panic.h"
 #include "../kernel/trap.h"
+#include "../kernel/framebuffer.h"
 
 #define ATA_ERR_BUS_FETCH   (-1)
 #define ATA_ERR_DRIVE_FETCH (-2)
 
-//check for existment
-uint8_t ata_pm = 0;
-uint8_t ata_ps = 0;
+uint8_t _ata_poll();
+void _ata_delay400ns();
+uint8_t _ata_wait_drq();
+void _ata_wait_bsy();
 
 void _ata_delay400ns() {
    for(int _i=0; _i<4; ++_i)
@@ -25,7 +27,6 @@ void _ata_reset() {
 
 void ata_interrupt_primary_bus() {
    _INT_BEGIN;
-   yell("14");
    pic_send_eoi(14);
    _INT_END;
 }
@@ -42,13 +43,10 @@ void _ata_wait_bsy() { //Wait for bsy to be 0
 
 uint8_t _ata_wait_drq() { //Wait fot drq to be 1
    while(!(x86_inb(ATA_PRIMARY_IO + ATA_REG_STATUS)&ATA_STATUS_RDY));
-   return x86_inb(ATA_PRIMARY_IO + ATA_REG_STATUS);
 }
 
-uint8_t _ide_identify(uint16_t drive) {
-   x86_outb(0x1F6, drive);
-
-   x86_outb(ATA_PRIMARY_IO + ATA_REG_HDDEVSEL, drive);
+uint8_t _ide_identify() {
+   x86_outb(ATA_PRIMARY_IO + ATA_REG_HDDEVSEL, ATA_MASTER_HD);
    x86_outb(ATA_PRIMARY_IO + ATA_REG_SECCOUNT0, 0x0); //sectors
 
    x86_outb(ATA_PRIMARY_IO + ATA_REG_LBA0, 0x0); //lba
@@ -56,53 +54,75 @@ uint8_t _ide_identify(uint16_t drive) {
    x86_outb(ATA_PRIMARY_IO + ATA_REG_LBA2, 0x0);
    x86_outb(ATA_PRIMARY_IO + ATA_REG_COMMAND, ATA_COM_IDENTIFY); //send identify command
                         
-   uint8_t status = x86_inb(0x1F7);
-   if(!status)
-      return ATA_ERR_BUS_FETCH;
-   status = _ata_wait_drq();
-   if(status & ATA_STATUS_ERR)
-      return ATA_ERR_DRIVE_FETCH;
+   uint8_t status = x86_inb(ATA_PRIMARY_IO + ATA_REG_STATUS);
+   _ata_delay400ns();
+   while (status & ATA_STATUS_BSY) {
+      _ata_delay400ns();
+      status = x86_inb(ATA_PRIMARY_IO + ATA_REG_STATUS);
+   }
+   _ata_wait_bsy();
+   if(!status) return ATA_ERR_BUS_FETCH;
+   _ata_wait_bsy();
+
+   uint8_t mid = x86_inb(ATA_PRIMARY_IO + ATA_REG_LBA1);
+   uint8_t hi  = x86_inb(ATA_PRIMARY_IO + ATA_REG_LBA2);
+
+   if(mid || hi) return ATA_ERR_DRIVE_FETCH;
+   if(_ata_poll()) return ATA_ERR_DRIVE_FETCH;
+
+   _ata_wait_bsy();
+   uint8_t identify_data[256];
+   for(int i=0; i<256; ++i) {
+      uint8_t stat = x86_inw(ATA_PRIMARY_IO + ATA_REG_DATA);
+
+      identify_data[i] = stat;
+   }
+   term_printf("\nFIN!\n");
    return 0;
 }
 
-void _ata_poll() {
+uint8_t _ata_poll() {
    _ata_delay400ns();
    _ata_wait_bsy();
    uint8_t status = _ata_wait_drq();
-   if (status & ATA_STATUS_ERR)
+   if (status & ATA_STATUS_ERR) {
       yell("ata device faliure");
+      return 1;
+   }
+   return 0;
 }
 
 void ata_init(uint8_t pic_loc) {
-   //set_idt_gate
+   set_idt_gate(pic_loc+14, ata_interrupt_primary_bus, TRAP_GATE_FLAGS);
+   set_idt_gate(pic_loc+15, ata_interrupt_primary_bus, TRAP_GATE_FLAGS);
+   pic_IRQ_remove_mask(14); 
+   pic_IRQ_remove_mask(15); 
+
    _ata_reset();
-   uint8_t status = _ide_identify(ATA_MASTER_HD);
+   uint8_t status = _ide_identify();
    if(status == ATA_ERR_BUS_FETCH) {
       yell("Can't fetch ata bus");
       return;
    }
-   ata_pm = (status==0)?1:0;
-   ata_ps = (_ide_identify(ATA_SLAVE_HD)==0)?1:0;
-
-   if(!ata_pm && !ata_ps) {
-      yell("Can't fetch any ata drives");
-      return;
-   }
 }
 
-uint8_t ata_read_block(uint32_t lba) {
+uint8_t ata_read_sector(uint32_t lba, void* data) {
+   _ata_wait_bsy();
+
    x86_outb(ATA_PRIMARY_IO + ATA_REG_HDDEVSEL, 0xE0 | ((lba >> 24) & 0xF));
    x86_outb(ATA_PRIMARY_IO + ATA_REG_SECCOUNT0, 0x1); //sectors
 
-   x86_outb(ATA_PRIMARY_IO + ATA_REG_LBA0, lba & 0xFF); //lba
-   x86_outb(ATA_PRIMARY_IO + ATA_REG_LBA1, (lba >> 8) & 0xFF);
-   x86_outb(ATA_PRIMARY_IO + ATA_REG_LBA2, (lba >> 16) & 0xFF);
+   x86_outb(ATA_PRIMARY_IO + ATA_REG_LBA0, lba); //lba
+   x86_outb(ATA_PRIMARY_IO + ATA_REG_LBA1, (lba >> 8));
+   x86_outb(ATA_PRIMARY_IO + ATA_REG_LBA2, (lba >> 16));
 
    x86_outb(ATA_PRIMARY_IO + ATA_REG_COMMAND, ATA_COM_READ); //send read command
-   _ata_poll();
    
-   uint8_t sector = x86_inb(0x1F0);
    _ata_wait_bsy();
-   return sector;
+   _ata_wait_drq();
+   uint16_t* dat = (uint16_t*)data;
+   for(uint32_t i=0; i<ATA_SECTOR_SIZE; ++i)
+      dat[i] = x86_inw(ATA_PRIMARY_IO + ATA_REG_DATA);
+   return 0;
 }
 
