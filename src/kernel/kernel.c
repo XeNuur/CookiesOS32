@@ -5,6 +5,7 @@
 #include "frame.h"
 #include "kheap.h"
 #include "panic.h"
+#include "device.h"
 
 #include <x86/idt.h>
 #include <x86/gdt.h>
@@ -15,6 +16,8 @@
 #include "../drivers/ata.h"
 #include "../drivers/keyboard.h"
 #include "../utils/multiboot.h"
+#include "../fs/vfs.h"
+#include "../fs/fat.h"
 
 #define COS32_VER "v0.1."
 
@@ -38,12 +41,12 @@ void helloworld_prog(void) {
 char* ataread_prog_name = "ataread";
 void ataread_prog(void) {
         term_writestring("Reading from ata drive!\n");
+        ataChar_t block[ATA_SECTOR_SIZE];
 
-        uint16_t block[ATA_SECTOR_SIZE];
-        ata_read_sector(0, block);
+        vread(devices_at(0), 0, 1, block);
             
         for(uint32_t i=0; i<ATA_SECTOR_SIZE; ++i) {
-            uint16_t ch = block[i];
+            ataChar_t ch = block[i];
             term_printf("%x(%c) ", ch, ch);
         }
 }
@@ -195,8 +198,14 @@ int kernel_main(multiboot_info_t *mbi) {
         frame_init(frame_start_addr, frame_end_addr);
         paging_init();
 
+	term_writestring("initing... DEVICES & VFS\n");
+        vfs_init();
+        devices_init();
+
 	term_writestring("initing... ATA driver\n");
         ata_init(pic_loc);
+        term_init_device();
+        fat_init(0);
 
 	term_writestring("initing... Keyboard driver\n");
         kb_init(pic_loc);

@@ -2,12 +2,16 @@
 #include <x86/io.h>
 #include <x86/pic.h>
 #include <x86/idt.h>
+#include <string.h>
 #include "../kernel/panic.h"
 #include "../kernel/trap.h"
 #include "../kernel/framebuffer.h"
+#include "../kernel/device.h"
 
 #define ATA_ERR_BUS_FETCH   (-1)
 #define ATA_ERR_DRIVE_FETCH (-2)
+
+int is_master_exist = 0;
 
 uint8_t _ata_poll();
 void _ata_delay400ns();
@@ -77,7 +81,6 @@ uint8_t _ide_identify() {
 
       identify_data[i] = stat;
    }
-   term_printf("\nFIN!\n");
    return 0;
 }
 
@@ -100,13 +103,24 @@ void ata_init(uint8_t pic_loc) {
 
    _ata_reset();
    uint8_t status = _ide_identify();
-   if(status == ATA_ERR_BUS_FETCH) {
+   if(status != 0) {
       yell("Can't fetch ata bus");
       return;
    }
+   is_master_exist = 1;
+
+   Vfs_t device_handler = vfs_node_new();
+   const char* name = "/dev/ata0";
+   memcpy(device_handler.name, name, strlen(name));
+   device_handler.read = ata_read_callback;
+   device_handler.flag = VFS_BLOCK_DEV;
+
+   devices_add(device_handler);
 }
 
-uint8_t ata_read_sector(uint32_t lba, void* data) {
+uint8_t ata_read_sector(uint32_t lba, ataChar_t* data) {
+   if(!is_master_exist) 
+      return -1;
    _ata_wait_bsy();
 
    x86_outb(ATA_PRIMARY_IO + ATA_REG_HDDEVSEL, 0xE0 | ((lba >> 24) & 0xF));
@@ -120,9 +134,27 @@ uint8_t ata_read_sector(uint32_t lba, void* data) {
    
    _ata_wait_bsy();
    _ata_wait_drq();
-   uint16_t* dat = (uint16_t*)data;
-   for(uint32_t i=0; i<ATA_SECTOR_SIZE; ++i)
-      dat[i] = x86_inw(ATA_PRIMARY_IO + ATA_REG_DATA);
+
+   uint32_t index = 0;
+   for(uint32_t i=0; i<256; ++i) {
+      uint16_t out = x86_inw(ATA_PRIMARY_IO + ATA_REG_DATA);
+      ataChar_t bytes[2] = { //endian spec
+         out & 0xFF,
+         (out >> 8) & 0xFF,
+      };
+
+      for(uint32_t j=0; j<2; ++j) {
+         data[index] = bytes[j];
+         ++index;
+      }
+   }
    return 0;
+}
+
+int ata_read_callback (Vfs_t* _node, uint32_t offset, uint32_t size, char* ptr) {
+   for(uint32_t i=0; i<size; ++i) {
+      ata_read_sector(offset+i, ptr);
+      ptr += ATA_SECTOR_SIZE;
+   }
 }
 

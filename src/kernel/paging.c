@@ -14,7 +14,7 @@ void paging_map(uint32_t virt, uint32_t phys) {
    PDEntry* pd_entry = &page_directory->entries[PD_INDEX(virt)];
 
    if(TEST_ATTRIBUTE(pd_entry, PTE_PRESENT) != PTE_PRESENT) {
-      PageTable* newtab = frame_alloc();
+      PageTable* newtab = (PageTable*)frame_alloc();
       if(!newtab) return;
       memset(newtab, 0x0, sizeof(PageTable));
       
@@ -23,7 +23,7 @@ void paging_map(uint32_t virt, uint32_t phys) {
       SET_ATTRIBUTE(pd_entry, PDE_WRITABLE);
    }
 
-   PageTable* table = PAGE_PHYS_ADDRESS(pd_entry);
+   PageTable* table = (PageTable*)PAGE_PHYS_ADDRESS(pd_entry);
    PTEntry *page = &table->entries[PT_INDEX(virt)];
 
    SET_ATTRIBUTE(page, PTE_PRESENT);
@@ -46,7 +46,7 @@ void paging_init() {
 
 		table->entries[PT_INDEX (virt) ] = page;
 	}
-        page_directory = frame_alloc_ex(3);
+        page_directory = (PageDirectory*)frame_alloc_ex(3);
 	for(int i = 0; i < 1024; i++)
 		page_directory->entries[i] = 0x2;
 

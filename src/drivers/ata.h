@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include "../fs/vfs.h"
 
 #define ATA_STATUS_BSY   (0x80)
 #define ATA_STATUS_RDY   (0x40)
@@ -38,7 +39,10 @@
 #define ATA_REG_ALTSTATUS  (0x0C)
 #define ATA_REG_DEVADDRESS (0x0D)
 
-#define ATA_SECTOR_SIZE (256)
+#define ATA_SECTOR_SIZE (512)
+typedef uint8_t ataChar_t;
 
 void ata_init(uint8_t pic_loc);
-uint8_t ata_read_sector(uint32_t lba, void* data);
+uint8_t ata_read_sector(uint32_t lba, ataChar_t* data);
+int ata_read_callback (Vfs_t*, uint32_t, uint32_t, char* );
+

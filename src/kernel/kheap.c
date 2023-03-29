@@ -9,7 +9,7 @@
 
 extern uint32_t krnl_end;
 uint32_t* curr_addr = (uint32_t*)&krnl_end;
-uint32_t max_page_addr = &krnl_end;
+uint32_t* max_page_addr = (uint32_t*)&krnl_end;
 
 KheapHeader *frist_hh = 0;
 KheapHeader *last_hh = 0;
@@ -53,18 +53,18 @@ void* malloc(size_t size) {
 
 create_new_header:
    *(KheapHeader*)curr_addr = _new_header(size, last_hh);
-   last_hh = curr_addr;
+   last_hh = (KheapHeader*)curr_addr;
    if(!frist_hh)
-      frist_hh = curr_addr;
+      frist_hh = (KheapHeader*)curr_addr;
    abs_size += sizeof(KheapHeader);
 
    if(addr+size < max_page_addr)
       goto alloc_pages_end;
    size_t page_num = ((size + sizeof(KheapHeader))/PAGE_SIZE);
    for(int i=0; i<page_num; ++i)
-      paging_map(addr+i*PAGE_SIZE, frame_alloc());
+      paging_map((uint32_t)(addr+i*PAGE_SIZE), frame_alloc());
 
-   uint32_t eof_page_addr = addr+page_num*PAGE_SIZE;
+   uint32_t *eof_page_addr = addr+page_num*PAGE_SIZE;
    if(eof_page_addr > max_page_addr)
       max_page_addr = eof_page_addr;
 alloc_pages_end:

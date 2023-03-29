@@ -1,5 +1,6 @@
 #include "framebuffer.h"
 #include <string.h>
+#include "device.h"
 
 size_t term_row = 0;
 size_t term_column = 0;
@@ -113,3 +114,19 @@ void term_vprintf(const char* fmt, va_list arg) {
    }
 }
 
+int term_write_callback(Vfs_t*, uint32_t, uint32_t, char*);
+
+void term_init_device() {
+   Vfs_t device_handler = vfs_node_new();
+   const char* name = "/dev/vga0";
+   memcpy(device_handler.name, name, strlen(name));
+   device_handler.write = term_write_callback;
+   device_handler.flag = VFS_CHAR_DEV;
+
+   devices_add(device_handler);
+}
+
+int term_write_callback(Vfs_t* node, uint32_t offset, uint32_t size, char*ptr) {
+   term_column += offset;
+   term_write(ptr, size);;
+}
