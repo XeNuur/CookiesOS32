@@ -95,7 +95,7 @@ uint8_t _ata_poll() {
    return 0;
 }
 
-void ata_init(uint8_t pic_loc) {
+uint32_t ata_init(uint8_t pic_loc) {
    set_idt_gate(pic_loc+14, ata_interrupt_primary_bus, TRAP_GATE_FLAGS);
    set_idt_gate(pic_loc+15, ata_interrupt_primary_bus, TRAP_GATE_FLAGS);
    pic_IRQ_remove_mask(14); 
@@ -104,8 +104,8 @@ void ata_init(uint8_t pic_loc) {
    _ata_reset();
    uint8_t status = _ide_identify();
    if(status != 0) {
-      yell("Can't fetch ata bus");
-      return;
+      panic("Can't fetch ata bus");
+      return 0;
    }
    is_master_exist = 1;
 
@@ -115,7 +115,7 @@ void ata_init(uint8_t pic_loc) {
    device_handler.read = ata_read_callback;
    device_handler.flag = VFS_BLOCK_DEV;
 
-   devices_add(device_handler);
+   return devices_add(device_handler);
 }
 
 uint8_t ata_read_sector(uint32_t lba, ataChar_t* data) {

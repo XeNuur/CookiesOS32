@@ -21,11 +21,58 @@
 
 #define COS32_VER "v0.1."
 
+int run_code(void* addr) {
+   int (*code_fn)(void) = addr;
+   return code_fn();
+}
+
 char* mini_shell_prefix = ">> ";
 
 void* shell_prog_ptr[255];
 char* shell_prog_names[255];
 size_t shell_prog_size = 0;
+
+char* fatreader_prog_name = "fat16tester";
+void fatreader_prog(void) {
+   char* buffer = malloc(800);
+   buffer[0] = '\0';
+   
+   Vfs_t* fat = fopen("/FOLDER/NOTME/HELP");
+   if(!fat) {
+      yell("cannot find file\n");
+      goto ret_me;
+   }
+   if(!vread(fat, 0, 800, buffer)) {
+      yell("unable to read\n");
+      free(fat);
+      goto ret_me;
+   }
+   term_printf("%s\n", buffer);
+   free(fat);
+ret_me:
+   free(buffer);
+}
+
+char* runinit_prog_name = "runinit";
+void runinit_prog(void) {
+   char* buffer = malloc(800);
+   buffer[0] = '\0';
+   
+   Vfs_t* fat = fopen("/INIT");
+   if(!fat) {
+      yell("cannot find INIT binnary\n");
+      goto ret_me;
+   }
+   if(!vread(fat, 0, 800, buffer)) {
+      yell("unable to read INIT binnary\n");
+      free(fat);
+      goto ret_me;
+   }
+   run_code(buffer);
+   free(fat);
+ret_me:
+   free(buffer);
+}
 
 char* help_prog_name = "help";
 void help_prog(void) {
@@ -93,6 +140,8 @@ void mini_shell(void) {
         mini_shell_add_entry(ataread_prog, ataread_prog_name); 
         mini_shell_add_entry(malloctest_prog, malloctest_prog_name); 
         mini_shell_add_entry(crashme_prog, crashme_prog_name); 
+        mini_shell_add_entry(fatreader_prog, fatreader_prog_name); 
+        mini_shell_add_entry(runinit_prog, runinit_prog_name); 
         term_writestring(mini_shell_prefix);
 
         char input_buffer[255];
@@ -203,9 +252,10 @@ int kernel_main(multiboot_info_t *mbi) {
         devices_init();
 
 	term_writestring("initing... ATA driver\n");
-        ata_init(pic_loc);
+        uint32_t dev_id = ata_init(pic_loc);
         term_init_device();
-        fat_init(0);
+
+        vmount_device(devices_at(dev_id), "/");
 
 	term_writestring("initing... Keyboard driver\n");
         kb_init(pic_loc);
@@ -215,8 +265,8 @@ int kernel_main(multiboot_info_t *mbi) {
 	term_writestring("\nWelcome in CookiesOS32 ver. "COS32_VER"!\n");
 	term_writestring("Created by Jan Lomozik\n");
         term_setcolor(VGA_COLOR_WHITE);
-
         term_putchar('\n');
+
         mini_shell();
         return 0;
 }

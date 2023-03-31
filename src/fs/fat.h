@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include "vfs.h"
 
 #define FAT16_EOF (0xFFF8)
 
@@ -30,5 +31,12 @@ typedef struct fat_entry_t{
     unsigned long file_size;
 } __attribute((packed)) FatEntry_t;
 
-void fat_init(uint32_t);
+int fat_check(Vfs_t* device);
+int fat_mount(Vfs_t* device); 
 
+int fat_file_read(Vfs_t*, uint32_t, uint32_t, char*);
+
+int fat_read_dir(Vfs_t*, uint32_t, VfsDirent_t*);
+int fat_find_dir(Vfs_t*, char*, Vfs_t*);
+
+static FatEntry_t *_fat_get_filehandle_rootdir(Vfs_t* dev, char* path);
