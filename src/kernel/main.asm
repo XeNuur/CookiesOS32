@@ -19,5 +19,17 @@ start:
         cli
         hlt
 
+global syscalltest_prog
+syscalltest_prog:
+   mov eax, 0
+   mov ebx, krnl_exit_code
+   int 0x80
+
+   mov eax, 1
+   mov ebx, 9
+   int 0x80
+
+   ret
+
 krnl_exit_code:
    db "kernel_main() returned an error!", 0

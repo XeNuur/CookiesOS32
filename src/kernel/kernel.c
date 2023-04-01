@@ -16,13 +16,14 @@
 #include "../drivers/ata.h"
 #include "../drivers/keyboard.h"
 #include "../utils/multiboot.h"
+#include "../utils/elf.h"
 #include "../fs/vfs.h"
 #include "../fs/fat.h"
 
-#define COS32_VER "v0.1."
+#define COS_VER "v2.1"
 
-int run_code(void* addr) {
-   int (*code_fn)(void) = addr;
+int exec_code(void* addr) {
+   int (*code_fn)() = addr;
    return code_fn();
 }
 
@@ -32,17 +33,19 @@ void* shell_prog_ptr[255];
 char* shell_prog_names[255];
 size_t shell_prog_size = 0;
 
+char* syscalltest_prog_name = "syscalltest";
+void syscalltest_prog(void);
+
 char* fatreader_prog_name = "fat16tester";
 void fatreader_prog(void) {
-   char* buffer = malloc(800);
-   buffer[0] = '\0';
+   char* buffer = malloc(256);
    
-   Vfs_t* fat = fopen("/FOLDER/NOTME/HELP");
+   Vfs_t* fat = fopen("/RES/MAFEST");
    if(!fat) {
       yell("cannot find file\n");
       goto ret_me;
    }
-   if(!vread(fat, 0, 800, buffer)) {
+   if(!vread(fat, 0, 256, buffer)) {
       yell("unable to read\n");
       free(fat);
       goto ret_me;
@@ -53,23 +56,25 @@ ret_me:
    free(buffer);
 }
 
-char* runinit_prog_name = "runinit";
+char* runinit_prog_name = "init";
 void runinit_prog(void) {
-   char* buffer = malloc(800);
-   buffer[0] = '\0';
+   char* buffer = malloc(100);
    
-   Vfs_t* fat = fopen("/INIT");
+   Vfs_t* fat = fopen("/BIN/INIT");
    if(!fat) {
-      yell("cannot find INIT binnary\n");
+      yell("cannot find init binnary\n");
       goto ret_me;
    }
-   if(!vread(fat, 0, 800, buffer)) {
-      yell("unable to read INIT binnary\n");
+   if(!vread(fat, 0, 100, buffer)) {
+      yell("unable to read init binnary\n");
       free(fat);
       goto ret_me;
    }
-   run_code(buffer);
    free(fat);
+
+   term_printf("Running from the '/BIN/INIT'!\n");
+   int status = exec_code(buffer);
+   term_printf("\ninit program returned: %x\n", status);
 ret_me:
    free(buffer);
 }
@@ -142,6 +147,11 @@ void mini_shell(void) {
         mini_shell_add_entry(crashme_prog, crashme_prog_name); 
         mini_shell_add_entry(fatreader_prog, fatreader_prog_name); 
         mini_shell_add_entry(runinit_prog, runinit_prog_name); 
+        mini_shell_add_entry(syscalltest_prog, syscalltest_prog_name); 
+
+        term_printf("running the build-in shell!\n"
+              "type 'init' to run init program\n"
+              "type 'help' to see other commands\n");
         term_writestring(mini_shell_prefix);
 
         char input_buffer[255];
@@ -247,7 +257,7 @@ int kernel_main(multiboot_info_t *mbi) {
         frame_init(frame_start_addr, frame_end_addr);
         paging_init();
 
-	term_writestring("initing... DEVICES & VFS\n");
+	term_writestring("initing... Devices & Vfs\n");
         vfs_init();
         devices_init();
 
@@ -262,8 +272,10 @@ int kernel_main(multiboot_info_t *mbi) {
 
         x86_int_on();
         term_setcolor(VGA_COLOR_LIGHT_BLUE);
-	term_writestring("\nWelcome in CookiesOS32 ver. "COS32_VER"!\n");
-	term_writestring("Created by Jan Lomozik\n");
+	term_writestring("\n");
+	term_writestring("Buggy & Dirty(?)...\n");
+	term_writestring("I mean enjoyable!\n");
+	term_writestring("Welcome in CookiesOS ver. "COS_VER"!\n");
         term_setcolor(VGA_COLOR_WHITE);
         term_putchar('\n');
 

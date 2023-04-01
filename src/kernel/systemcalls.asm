@@ -40,4 +40,4 @@ syscall_dispatch:
    add esp, 4
    iretd
 .bad_opcode:
-   ret
+   iretd

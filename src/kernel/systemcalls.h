@@ -4,16 +4,17 @@
 
 const int syscall_cnt = SYSCALLS_COUNT;
 
-void syscall_1(void) {
-   term_writestring("syscall nr.1\n");
+void print(char** str) {
+   term_writestring(*str);
 }
 
-void syscall_2(void) {
-   term_writestring("syscall nr.2\n");
+void syscall_2(uint32_t* number) {
+   uint32_t data = *number;
+   term_printf("Number: %x\n", data);
 }
 
 void *syscalls[SYSCALLS_COUNT] = {
-   syscall_1,
+   print,
    syscall_2,
 };
 

@@ -13,7 +13,7 @@ void general_exception_handler(Registers* frame) {
 }
 
 void exception_div_by_zero(Registers* frame) {
-   yell("Division by ZERO");
+   yell("DIVISION_BY_ZERO");
 }
 
 void exception_page_fault(Registers* frame) {
@@ -23,7 +23,7 @@ void exception_page_fault(Registers* frame) {
    int reserved = frame->err_code & 0x8;     
    int id = frame->err_code & 0x10;          
 
-   panic("PAGE FAULT\n"
+   panic("PAGE_FAULT\n"
          "Caused addres: %x\n"
          "Raw error code: %x\n\n"
          "Details:\n"
