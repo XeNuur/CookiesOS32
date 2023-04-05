@@ -62,11 +62,10 @@ create_new_header:
       goto alloc_pages_end;
    size_t page_num = ((size + sizeof(KheapHeader))/PAGE_SIZE);
    for(int i=0; i<page_num; ++i)
-      paging_map((uint32_t)(addr+i*PAGE_SIZE), frame_alloc());
+      paging_map((uint32_t)(curr_addr+i*PAGE_SIZE), frame_alloc());
 
-   uint32_t *eof_page_addr = addr+page_num*PAGE_SIZE;
-   if(eof_page_addr > max_page_addr)
-      max_page_addr = eof_page_addr;
+   uint32_t *eof_page_addr = page_num*PAGE_SIZE;
+   max_page_addr += page_num*PAGE_SIZE;
 alloc_pages_end:
 
    curr_addr += abs_size;

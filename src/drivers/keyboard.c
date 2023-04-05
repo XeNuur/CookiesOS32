@@ -74,9 +74,17 @@ end:
    _INT_END;
 }
 
-void kb_init(uint8_t pic_loc) {
+uint32_t kb_init(uint8_t pic_loc) {
    set_idt_gate(pic_loc+1, kb_interrupt_hander, INT_GATE_FLAGS);
    pic_IRQ_remove_mask(1); //keyboard
+                           
+   Vfs_t device_handler = vfs_node_new();
+   const char* name = "kb";
+   memcpy(device_handler.name, name, strlen(name)+1);
+   device_handler.read = keyboard_read_callback;
+   device_handler.flag = VFS_CHAR_DEV;
+
+   return devices_add(device_handler);
 }
 
 char kb_get_curr() { return current_ch; }
@@ -93,3 +101,11 @@ char kb_wait_get() {
    return kb_get();
 }
 
+int keyboard_read_callback (Vfs_t* kb_node, uint32_t offset, uint32_t size, char* buffer) {
+   uint32_t asize = offset + size;
+   for(int i=0; i<asize; ++i) {
+      if(i < offset)
+         continue;
+      buffer[i] = kb_get();
+   }
+}

@@ -5,11 +5,11 @@
 #include <x86/memory.h>
 
 void general_exception_handler_err(Registers* frame) {
-   panic("CPU exception was trigged!");
+   panic("A faulty exception was trigged!");
 }
 
 void general_exception_handler(Registers* frame) {
-   yell("An unexpected error happened!");
+   yell("A unexpected exception was trigged!");
 }
 
 void exception_div_by_zero(Registers* frame) {
@@ -46,3 +46,6 @@ void interrupt_pit_timer(Registers* frame) {
    _INT_END;
 }
 
+void exception_general_protection_fault(Registers* frame) {
+   panic("GENERAL_PROTECTION_FAULT exception");
+}

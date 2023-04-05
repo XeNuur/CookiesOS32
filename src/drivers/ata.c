@@ -110,8 +110,8 @@ uint32_t ata_init(uint8_t pic_loc) {
    is_master_exist = 1;
 
    Vfs_t device_handler = vfs_node_new();
-   const char* name = "/dev/ata0";
-   memcpy(device_handler.name, name, strlen(name));
+   const char* name = "ata";
+   memcpy(device_handler.name, name, strlen(name)+1);
    device_handler.read = ata_read_callback;
    device_handler.flag = VFS_BLOCK_DEV;
 

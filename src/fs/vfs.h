@@ -30,7 +30,7 @@ typedef int (*vfs_write_callback)(struct vfs_t*, uint32_t, uint32_t, char* );
 typedef int (*vfs_open_callback)(struct vfs_t*);
 typedef int (*vfs_close_callback)(struct vfs_t*);
 typedef int (*vfs_readdir_callback)(struct vfs_t*, uint32_t, struct vfs_dirent_t*);
-typedef int (*vfs_finddir_callback)(struct vfs_t*, char*, struct vfs_t*);
+typedef int (*vfs_finddir_callback)(struct vfs_t*, char*, struct vfs_t**);
 
 typedef struct vfs_t {
    char name[VFS_NAME_MAX];
@@ -54,6 +54,7 @@ typedef struct mount_info_t {
 } MountInfo_t;
 
 Vfs_t* fopen(char* path);
+int fclose(Vfs_t*);
 
 //node, offset, size, ptr
 int vread(Vfs_t*, uint32_t, uint32_t, char*);
@@ -61,9 +62,9 @@ int vwrite(Vfs_t*, uint32_t, uint32_t, char*);
 int vopen(Vfs_t*);
 int vclose(Vfs_t*);
 int vread_dir(Vfs_t*, uint32_t, VfsDirent_t*);
-int vfind_dir(Vfs_t*, char*, Vfs_t*);
+int vfind_dir(Vfs_t*, char*, Vfs_t**);
 
-int vmount_device(Vfs_t*, char*);
+int vmount_device(Vfs_t*, char*, uint32_t);
 
 Vfs_t vfs_node_new();
 int vfs_init();

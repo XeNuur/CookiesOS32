@@ -3,11 +3,6 @@
 #include <x86/memory.h>
 #include "frame.h"
 
-/* Paging now will be really simple
- * we reserve 0-8MB for kernel stuff
- * heap will be from approx 1mb to 4mb
- * and paging stuff will be from 4mb
- */
 #define PAGE_SIZE (4096)
 
 typedef enum {
@@ -63,5 +58,7 @@ static PageDirectory *page_directory = 0x0;
 void paging_map(uint32_t virt, uint32_t phys);
 uint32_t *paging_page_get(uint32_t virt);
 void paging_init();
-
 void paging_page_new(PTEntry *page);
+
+void paging_dir_copy();
+

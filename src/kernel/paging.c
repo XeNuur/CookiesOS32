@@ -38,23 +38,30 @@ uint32_t *paging_page_get(uint32_t virt) {
 }
 
 void paging_init() {
-        PageTable* table = (PageTable*)frame_alloc();
-	for (int i=0, frame=0x0, virt=0x00000000; i<1024; i++, frame+=4096, virt+=4096) {
-		PTEntry page=0;
-		SET_ATTRIBUTE(&page, PTE_PRESENT);
- 		SET_FRAME(&page, frame);
+   PageTable* table = (PageTable*)frame_alloc();
+   for (int i=0, frame=0x0, virt=0x00000000; i<1024; i++, frame+=4096, virt+=4096) {
+   	PTEntry page=0;
+   	SET_ATTRIBUTE(&page, PTE_PRESENT);
+   	SET_FRAME(&page, frame);
 
-		table->entries[PT_INDEX (virt) ] = page;
-	}
-        page_directory = (PageDirectory*)frame_alloc_ex(3);
-	for(int i = 0; i < 1024; i++)
-		page_directory->entries[i] = 0x2;
+   	table->entries[PT_INDEX (virt) ] = page;
+   }
+   page_directory = (PageDirectory*)frame_alloc_ex(3);
+   for(int i = 0; i < 1024; i++)
+   	page_directory->entries[i] = 0x2;
 
-        PDEntry *entry = &page_directory->entries[PD_INDEX(0x0)];
-        SET_ATTRIBUTE(entry, PDE_PRESENT);
-        SET_ATTRIBUTE(entry, PDE_WRITABLE);
-        SET_FRAME(entry, (uint32_t)table);
-        
-        load_page_directory((uint32_t)page_directory);
+   PDEntry *entry = &page_directory->entries[PD_INDEX(0x0)];
+   SET_ATTRIBUTE(entry, PDE_PRESENT);
+   SET_ATTRIBUTE(entry, PDE_WRITABLE);
+   SET_FRAME(entry, (uint32_t)table);
+   
+   load_page_directory((uint32_t)page_directory);
+}
+
+void paging_dir_copy() {
+   PageDirectory* new_dir = (PageDirectory*)frame_alloc_ex(3);
+   memset(new_dir, 0, sizeof(new_dir));
+
+   term_printf("%x", new_dir);
 }
 

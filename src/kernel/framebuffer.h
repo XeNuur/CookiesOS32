@@ -51,6 +51,7 @@ static const size_t VGA_HEIGHT = 25;
 size_t strlen(const char* str);
 void term_put_char_at(char c, uint8_t color, size_t x, size_t y);
 void term_init(void);
+void term_clean(void);
 void term_putchar(char c);
 void term_write(const char* data, size_t size);
 void term_writestring(const char* data);

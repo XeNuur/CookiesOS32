@@ -13,7 +13,11 @@ void term_put_char_at(char c, uint8_t color, size_t x, size_t y) {
 }
  
 void term_init(void) {
-	term_color = vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+        term_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
+        term_clean();
+}
+
+void term_clean(void) {
 	for (size_t y = 0; y < VGA_HEIGHT; y++)
 		for (size_t x = 0; x < VGA_WIDTH; x++)
                         term_put_char_at(' ', term_color, x, y);
@@ -118,7 +122,7 @@ int term_write_callback(Vfs_t*, uint32_t, uint32_t, char*);
 
 void term_init_device() {
    Vfs_t device_handler = vfs_node_new();
-   const char* name = "/dev/vga0";
+   const char* name = "video";
    memcpy(device_handler.name, name, strlen(name));
    device_handler.write = term_write_callback;
    device_handler.flag = VFS_CHAR_DEV;
@@ -127,6 +131,5 @@ void term_init_device() {
 }
 
 int term_write_callback(Vfs_t* node, uint32_t offset, uint32_t size, char*ptr) {
-   term_column += offset;
-   term_write(ptr, size);;
+   term_write(ptr, size);
 }

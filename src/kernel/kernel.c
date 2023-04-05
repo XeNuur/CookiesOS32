@@ -18,9 +18,10 @@
 #include "../utils/multiboot.h"
 #include "../utils/elf.h"
 #include "../fs/vfs.h"
+#include "../fs/devfs.h"
 #include "../fs/fat.h"
 
-#define COS_VER "v2.1"
+#define COS_VER "2.4.5"
 
 int exec_code(void* addr) {
    int (*code_fn)() = addr;
@@ -32,6 +33,27 @@ char* mini_shell_prefix = ">> ";
 void* shell_prog_ptr[255];
 char* shell_prog_names[255];
 size_t shell_prog_size = 0;
+
+char* cls_prog_name = "cls";
+void cls_prog(void) {
+   term_clean();
+}
+
+char* devfstest_prog_name = "devfstest";
+void devfstest_prog(void) {
+   Vfs_t* handle = fopen("/DEV/");
+   if(!handle)
+      return;
+
+   uint32_t index = 0;
+   for(;;) {
+       VfsDirent_t dirent;
+       if(!vread_dir(handle, index, &dirent))
+          break;
+       term_printf("(%x) %s\n", index, dirent.name);
+       ++index;
+   }
+}
 
 char* syscalltest_prog_name = "syscalltest";
 void syscalltest_prog(void);
@@ -47,34 +69,33 @@ void fatreader_prog(void) {
    }
    if(!vread(fat, 0, 256, buffer)) {
       yell("unable to read\n");
-      free(fat);
+      vclose(fat);
       goto ret_me;
    }
+   vclose(fat);
    term_printf("%s\n", buffer);
-   free(fat);
 ret_me:
    free(buffer);
 }
 
 char* runinit_prog_name = "init";
 void runinit_prog(void) {
-   char* buffer = malloc(100);
+   char* buffer = malloc(0x1000);
    
    Vfs_t* fat = fopen("/BIN/INIT");
    if(!fat) {
       yell("cannot find init binnary\n");
       goto ret_me;
    }
-   if(!vread(fat, 0, 100, buffer)) {
+   if(!vread(fat, 0, 0x1000, buffer)) {
       yell("unable to read init binnary\n");
       free(fat);
       goto ret_me;
    }
-   free(fat);
+   fclose(fat);
 
-   term_printf("Running from the '/BIN/INIT'!\n");
-   int status = exec_code(buffer);
-   term_printf("\ninit program returned: %x\n", status);
+   int status = elf_stat(buffer, 0x1000);
+   term_printf("\nInit returned: %x!\n", status);
 ret_me:
    free(buffer);
 }
@@ -129,7 +150,8 @@ void crashme_prog(void) {
    for(;;) {
         i += size; 
         void *ptr = malloc(size);
-        term_printf("Ptr: %x\nLen: %x\n", ptr, i);
+        term_printf("Ptr: %x\nLen: %x\n (%x - %x) \n",
+              ptr, i, frame_count(), frame_max());
    }
 }
 
@@ -148,9 +170,11 @@ void mini_shell(void) {
         mini_shell_add_entry(fatreader_prog, fatreader_prog_name); 
         mini_shell_add_entry(runinit_prog, runinit_prog_name); 
         mini_shell_add_entry(syscalltest_prog, syscalltest_prog_name); 
+        mini_shell_add_entry(devfstest_prog, devfstest_prog_name);
+        mini_shell_add_entry(cls_prog, cls_prog_name);
 
-        term_printf("running the build-in shell!\n"
-              "type 'init' to run init program\n"
+        term_printf("\nrunning the build-in shell!\n"
+              "type 'init' to rerun init program\n"
               "type 'help' to see other commands\n");
         term_writestring(mini_shell_prefix);
 
@@ -188,7 +212,7 @@ parse_input:
 
             term_setcolor(VGA_COLOR_LIGHT_RED);
             term_writestring("Input error!");
-            term_setcolor(VGA_COLOR_WHITE);
+            term_setcolor(VGA_COLOR_LIGHT_GREY);
             goto parse_quit;
 
 parse_quit:
@@ -200,11 +224,11 @@ parse_quit:
 
 int kernel_main(multiboot_info_t *mbi) {
         term_init();
-	term_writestring("CookiesOS32 init start!\n");
-        term_setcolor(VGA_COLOR_LIGHT_GREEN);
+	term_writestring("Starting this junk up!\n");
+        term_setcolor(VGA_COLOR_CYAN);
 
-	term_writestring("initing... MEMORY MAP:\n");
-        term_setcolor(VGA_COLOR_GREEN);
+	term_writestring("[Init] Getting memory map\n");
+        term_setcolor(VGA_COLOR_LIGHT_CYAN);
         if(!(mbi->flags >> 6 & 0x1)) {
             yell("invalid memory map given by GRUB'en");
         }
@@ -229,21 +253,22 @@ int kernel_main(multiboot_info_t *mbi) {
                   addr, len, size, type
             );
         }
-        term_setcolor(VGA_COLOR_LIGHT_GREEN);
+        term_setcolor(VGA_COLOR_CYAN);
 
-	term_writestring("initing... GDT\n");
+	term_writestring("[Init] Loading GDT\n");
         gdt_init();
 
-	term_writestring("initing... IDT\n");
+	term_writestring("[Init] Loading IDT\n");
         x86_int_off();
         idt_init();
         //init system calls
         set_idt_gate(0x80, syscall_dispatch, INT_GATE_USER_FLAGS);
         //init exceptions handling
         set_idt_gate(0, exception_div_by_zero, TRAP_GATE_FLAGS);
+        set_idt_gate(0xD, exception_general_protection_fault, TRAP_GATE_FLAGS);
         set_idt_gate(14, exception_page_fault, TRAP_GATE_FLAGS);
 
-	term_writestring("initing... PIC\n");
+	term_writestring("[Init] Configurating PIC...\n");
         pic_disable();
         pic_init();
 
@@ -251,34 +276,38 @@ int kernel_main(multiboot_info_t *mbi) {
         set_idt_gate(pic_loc, interrupt_pit_timer, INT_GATE_FLAGS);
         pic_IRQ_remove_mask(0); //timer
         pic_IRQ_remove_mask(2); // slave PIC chip
-	term_writestring("initing... Interrupts\n");
+	term_writestring("[Init] Setting up interrupts\n");
 
-	term_writestring("initing... Paging\n");
+	term_writestring("[Init] Enable paging\n");
         frame_init(frame_start_addr, frame_end_addr);
         paging_init();
 
-	term_writestring("initing... Devices & Vfs\n");
+	term_writestring("[Init] Setting devices subsystem\n");
         vfs_init();
         devices_init();
 
-	term_writestring("initing... ATA driver\n");
+	term_writestring("[Init] Installing ATA driver\n");
         uint32_t dev_id = ata_init(pic_loc);
         term_init_device();
 
-        vmount_device(devices_at(dev_id), "/");
+        vmount_device(devices_at(dev_id), "/", 0);
+        mount_devfs_device("/DEV/");
 
-	term_writestring("initing... Keyboard driver\n");
+	term_writestring("[Init] Installing Keyboard driver\n");
         kb_init(pic_loc);
 
         x86_int_on();
-        term_setcolor(VGA_COLOR_LIGHT_BLUE);
-	term_writestring("\n");
-	term_writestring("Buggy & Dirty(?)...\n");
+        term_setcolor(VGA_COLOR_GREEN);
+	term_writestring("\nBuggy & Dirty(?)...\n");
 	term_writestring("I mean enjoyable!\n");
-	term_writestring("Welcome in CookiesOS ver. "COS_VER"!\n");
-        term_setcolor(VGA_COLOR_WHITE);
+
+        term_setcolor(VGA_COLOR_LIGHT_GREEN);
+	term_writestring("\nWelcome in CookiesOS (kernel ver."COS_VER")!\n");
+	term_writestring("Starting initial binnary!\n");
+        term_setcolor(VGA_COLOR_LIGHT_GREY);
         term_putchar('\n');
 
+        runinit_prog();
         mini_shell();
         return 0;
 }
