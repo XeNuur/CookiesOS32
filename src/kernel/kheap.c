@@ -52,10 +52,16 @@ void* malloc(size_t size) {
       return found_addr+sizeof(KheapHeader);
 
 create_new_header:
-   *(KheapHeader*)curr_addr = _new_header(size, last_hh);
-   last_hh = (KheapHeader*)curr_addr;
-   if(!frist_hh)
+   *(KheapHeader*)curr_addr = _new_header(size, 0);
+
+   if(!frist_hh) {
       frist_hh = (KheapHeader*)curr_addr;
+      last_hh = (KheapHeader*)curr_addr;
+   } else {
+      last_hh->next = (KheapHeader*)curr_addr;
+      last_hh = (KheapHeader*)curr_addr;
+   }
+
    abs_size += sizeof(KheapHeader);
 
    if(addr+size < max_page_addr)

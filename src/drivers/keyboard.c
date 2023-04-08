@@ -1,11 +1,15 @@
 #include "keyboard.h"
 #include "../kernel/framebuffer.h"
+#include "../kernel/device.h"
 #include <x86/pic.h>
 #include <x86/idt.h>
 #include <x86/io.h>
+#include <string.h>
 
 #define KB_DATA_PORT (0x60)
 #define KB_CMD_PORT  (0x64)
+
+#define KB_SIGNAL_OUT  (0x40)
 
 /* KBDUS means US Keyboard Layout. This is a scancode table
 *  used to layout a standard US keyboard. I have left some
@@ -56,7 +60,8 @@ char current_ch = 0;
 
 char buffer[255];
 int handled_index = 0;
-int is_handled = 1;
+int signal = 0;
+int wait_enabled = 0; 
 
 void kb_interrupt_hander(Registers* regs) {
    _INT_BEGIN;
@@ -64,10 +69,10 @@ void kb_interrupt_hander(Registers* regs) {
    unsigned char code = x86_inb(0x60);
    if(code & 0x80) //special chars
       goto end;
-
    current_ch = kbdus[code];
    buffer[handled_index++] = current_ch;
-   is_handled = 0;
+
+   signal = 1;
 
 end:
    pic_send_eoi(1);
@@ -96,16 +101,23 @@ char kb_get() {
 }
 
 char kb_wait_get() {
-   while(is_handled);
-   is_handled = 1;
+   while(!signal);
+   signal = 0;
    return kb_get();
 }
 
 int keyboard_read_callback (Vfs_t* kb_node, uint32_t offset, uint32_t size, char* buffer) {
+   int ret = 0;
+   if(signal)
+      ret = KB_SIGNAL_OUT;
+
    uint32_t asize = offset + size;
    for(int i=0; i<asize; ++i) {
       if(i < offset)
          continue;
       buffer[i] = kb_get();
    }
+   signal = 0;
+   return ret;
 }
+

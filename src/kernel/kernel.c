@@ -21,7 +21,7 @@
 #include "../fs/devfs.h"
 #include "../fs/fat.h"
 
-#define COS_VER "2.4.5"
+#define COS_VER "2.6"
 
 int exec_code(void* addr) {
    int (*code_fn)() = addr;
@@ -67,7 +67,7 @@ void fatreader_prog(void) {
       yell("cannot find file\n");
       goto ret_me;
    }
-   if(!vread(fat, 0, 256, buffer)) {
+   if(vread(fat, 0, 256, buffer)) {
       yell("unable to read\n");
       vclose(fat);
       goto ret_me;
@@ -80,6 +80,7 @@ ret_me:
 
 char* runinit_prog_name = "init";
 void runinit_prog(void) {
+   term_writestring("Starting initial binnary!\n");
    char* buffer = malloc(0x1000);
    
    Vfs_t* fat = fopen("/BIN/INIT");
@@ -87,9 +88,9 @@ void runinit_prog(void) {
       yell("cannot find init binnary\n");
       goto ret_me;
    }
-   if(!vread(fat, 0, 0x1000, buffer)) {
+   if(vread(fat, 0, 0x1000, buffer)) {
       yell("unable to read init binnary\n");
-      free(fat);
+      fclose(fat);
       goto ret_me;
    }
    fclose(fat);
@@ -128,11 +129,11 @@ char* malloctest_prog_name = "malloctest";
 void malloctest_prog(void) {
         term_writestring("Testing malloc: \n");
 
-        void *ptr1 = malloc(32);
+        void *ptr1 = malloc(8);
         term_printf("ptr1: %x\n", ptr1);
         free(ptr1);
 
-        void *ptr2 = malloc(28);
+        void *ptr2 = malloc(8);
         term_printf("ptr2: %x\n", ptr2);
 
         void *ptr3 = malloc(16);
@@ -173,7 +174,7 @@ void mini_shell(void) {
         mini_shell_add_entry(devfstest_prog, devfstest_prog_name);
         mini_shell_add_entry(cls_prog, cls_prog_name);
 
-        term_printf("\nrunning the build-in shell!\n"
+        term_printf("running the build-in shell!\n"
               "type 'init' to rerun init program\n"
               "type 'help' to see other commands\n");
         term_writestring(mini_shell_prefix);
@@ -295,17 +296,11 @@ int kernel_main(multiboot_info_t *mbi) {
 
 	term_writestring("[Init] Installing Keyboard driver\n");
         kb_init(pic_loc);
-
         x86_int_on();
-        term_setcolor(VGA_COLOR_GREEN);
-	term_writestring("\nBuggy & Dirty(?)...\n");
-	term_writestring("I mean enjoyable!\n");
 
         term_setcolor(VGA_COLOR_LIGHT_GREEN);
-	term_writestring("\nWelcome in CookiesOS (kernel ver."COS_VER")!\n");
-	term_writestring("Starting initial binnary!\n");
+	term_writestring("\nWelcome to CookiesOS (kernel ver."COS_VER")!\n");
         term_setcolor(VGA_COLOR_LIGHT_GREY);
-        term_putchar('\n');
 
         runinit_prog();
         mini_shell();

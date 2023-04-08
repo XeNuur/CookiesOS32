@@ -37,9 +37,9 @@ int fat_mount(Vfs_t* device);
 int fat_file_read(Vfs_t*, uint32_t, uint32_t, char*);
 
 int fat_read_dir(Vfs_t*, uint32_t, VfsDirent_t*);
-int fat_find_dir(Vfs_t*, char*, Vfs_t**);
+int fat_find_dir(Vfs_t*, char*, Vfs_t*);
 
 int fat_dir_readdir(Vfs_t*, uint32_t, VfsDirent_t*);
-int fat_dir_finddir(Vfs_t*, char*, Vfs_t**);
+int fat_dir_finddir(Vfs_t*, char*, Vfs_t*);
 
 static FatEntry_t *_fat_get_filehandle_rootdir(Vfs_t* dev, char* path);

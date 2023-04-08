@@ -23,9 +23,9 @@ Vfs_t* fopen(char* path) {
       return info.device->master;
    }
    char* real_path = path+strlen(info.path);
-   int status = vfind_dir((info.device)->master, real_path, &file);
+   int status = vfind_dir((info.device)->master, real_path, file);
 
-   if(!status) {
+   if(status) {
       free(file);
       return NULL;
    }
@@ -69,7 +69,7 @@ int vread_dir(Vfs_t* node, uint32_t index, VfsDirent_t* dirent) {
    return -1;
 }
 
-int vfind_dir(Vfs_t* node, char* name, Vfs_t** target) {
+int vfind_dir(Vfs_t* node, char* name, Vfs_t* target) {
    if(node->read_dir && (node->flag == VFS_DIRECTORY || node->flag == VFS_FILESYSTEM))
       return node->find_dir(node, name, target);
    return -1;
@@ -99,12 +99,12 @@ int vmount_device(Vfs_t* device, char* path, uint32_t type) {
    char* err_msg = "Undefined";
    MountInfo_t info;
    if(type == 0)  {
-      if(!fat_check(device)) {
+      if(fat_check(device)) {
          err_msg = "Not a Fat16 device";
          goto exit_with_err;
       }
    
-      if(!fat_mount(device)){
+      if(fat_mount(device)){
          err_msg = "fat_mount(..) returned with error";
          goto exit_with_err;
       }
@@ -112,11 +112,11 @@ int vmount_device(Vfs_t* device, char* path, uint32_t type) {
       info.device = device;
    }
    else if(type == 1) {
-      if(!devfs_check(device)) {
+      if(devfs_check(device)) {
          err_msg = "Not a devfs device";
          goto exit_with_err;
       }
-      if(!devfs_mount(device)){
+      if(devfs_mount(device)){
          err_msg = "dev_mount(..) returned with error";
          goto exit_with_err;
       }
@@ -126,10 +126,10 @@ int vmount_device(Vfs_t* device, char* path, uint32_t type) {
 
    mount_points[mount_count++] = info;
    term_printf("Mounted %s in path: %s\n", device->name, path);
-   return 1;
+   return 0;
 exit_with_err:
    term_printf("Unable to mount device (%s)\n", err_msg);
-   return 0;
+   return 1;
 }
 
 int _vfs_mount_init() {

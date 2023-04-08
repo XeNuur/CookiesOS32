@@ -53,12 +53,14 @@ typedef struct {
    PDEntry entries[1024];
 } PageDirectory;
 
-static PageDirectory *page_directory = 0x0;
+static PageDirectory *kernel_page_dir = 0;
+static PageDirectory *current_page_dir = 0;
 
 void paging_map(uint32_t virt, uint32_t phys);
 uint32_t *paging_page_get(uint32_t virt);
 void paging_init();
 void paging_page_new(PTEntry *page);
 
-void paging_dir_copy();
+PageDirectory* paging_dir_new();
+void paging_dir_switch(PageDirectory*);
 

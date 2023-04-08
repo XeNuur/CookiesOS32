@@ -11,14 +11,14 @@ void paging_page_new(PTEntry *page){
 }
 
 void paging_map(uint32_t virt, uint32_t phys) {
-   PDEntry* pd_entry = &page_directory->entries[PD_INDEX(virt)];
+   PDEntry* pd_entry = &current_page_dir->entries[PD_INDEX(virt)];
 
    if(TEST_ATTRIBUTE(pd_entry, PTE_PRESENT) != PTE_PRESENT) {
       PageTable* newtab = (PageTable*)frame_alloc();
       if(!newtab) return;
       memset(newtab, 0x0, sizeof(PageTable));
       
-      PDEntry* pd_entry = &page_directory->entries[PD_INDEX(virt)];
+      PDEntry* pd_entry = &current_page_dir->entries[PD_INDEX(virt)];
       SET_ATTRIBUTE(pd_entry, PDE_PRESENT);
       SET_ATTRIBUTE(pd_entry, PDE_WRITABLE);
    }
@@ -31,13 +31,24 @@ void paging_map(uint32_t virt, uint32_t phys) {
 }
 
 uint32_t *paging_page_get(uint32_t virt) {
-   uint32_t* entry = &page_directory->entries[PD_INDEX(virt)];
+   uint32_t* entry = &current_page_dir->entries[PD_INDEX(virt)];
    PageTable* table = (PageTable*)PAGE_PHYS_ADDRESS(entry);
 
    return &table->entries[PT_INDEX(virt)];
 }
 
+void paging_dir_switch(PageDirectory* dir) {
+   current_page_dir = dir;
+   load_page_directory((uint32_t)current_page_dir);
+}
+
 void paging_init() {
+   kernel_page_dir = paging_dir_new();
+   paging_dir_switch(kernel_page_dir);
+   enable_paging();
+}
+
+PageDirectory* paging_dir_new() {
    PageTable* table = (PageTable*)frame_alloc();
    for (int i=0, frame=0x0, virt=0x00000000; i<1024; i++, frame+=4096, virt+=4096) {
    	PTEntry page=0;
@@ -46,7 +57,7 @@ void paging_init() {
 
    	table->entries[PT_INDEX (virt) ] = page;
    }
-   page_directory = (PageDirectory*)frame_alloc_ex(3);
+   PageDirectory* page_directory = (PageDirectory*)frame_alloc_ex(3);
    for(int i = 0; i < 1024; i++)
    	page_directory->entries[i] = 0x2;
 
@@ -54,14 +65,6 @@ void paging_init() {
    SET_ATTRIBUTE(entry, PDE_PRESENT);
    SET_ATTRIBUTE(entry, PDE_WRITABLE);
    SET_FRAME(entry, (uint32_t)table);
-   
-   load_page_directory((uint32_t)page_directory);
-}
-
-void paging_dir_copy() {
-   PageDirectory* new_dir = (PageDirectory*)frame_alloc_ex(3);
-   memset(new_dir, 0, sizeof(new_dir));
-
-   term_printf("%x", new_dir);
+   return page_directory;
 }
 

@@ -22,7 +22,7 @@ FatBpB_t *_parse_bpb(Vfs_t *dev) {
 
 int fat_check(Vfs_t* device) {
    if(device->flag != VFS_BLOCK_DEV || !device->read) {
-      return 0;
+      return 1;
    }
    char* buffer = malloc(512);
    vread(device, 0, 1, buffer);
@@ -37,7 +37,7 @@ int fat_check(Vfs_t* device) {
          break;
       }
    free(buffer);
-   return 1;
+   return 0;
 }
 
 int fat_mount(Vfs_t* device) {
@@ -51,7 +51,7 @@ int fat_mount(Vfs_t* device) {
    node->master = device;
 
    device->master = node;
-   return 1;
+   return 0;
 }
 
 int fat_file_create(Vfs_t* node, char* path, Vfs_t* device) {
@@ -106,8 +106,8 @@ FatEntry_t *_fat_get_filehandle_rootdir(Vfs_t* dev, char* path) {
 
 int fat_file_read_with_handle(Vfs_t* file, FatEntry_t *handle, uint32_t size, char* ptr) {
    if(!(file->flag == VFS_FILE || file->flag == VFS_DIRECTORY))
-      return 0;
-   if(!handle) return 0;
+      return 1;
+   if(!handle) return 1;
 
    FatBpB_t* fatbpb = _parse_bpb(file->master);
    uint32_t root_lba = fatbpb->NumberOfFats * fatbpb->SectorsPerFat + fatbpb->ReservedSectors;
@@ -139,7 +139,7 @@ int fat_file_read_with_handle(Vfs_t* file, FatEntry_t *handle, uint32_t size, ch
          break;
    }
    free(fatbpb); free(buffer);
-   return 1;
+   return 0;
 }
 
 char* strtok(char* path, char ch) {
@@ -225,16 +225,16 @@ fully_break:
 
 int fat_file_read(Vfs_t* file, uint32_t offset, uint32_t size, char* ptr) {
    FatEntry_t* fe = _fat_get_filehandle(file);
-   if(!fe) return 0;
+   if(!fe) return 1;
    fat_file_read_with_handle(file, fe, size, ptr);
    free(fe);
-   return 1;
+   return 0;
 }
 
 int fat_read_dir(Vfs_t* dev, uint32_t index, VfsDirent_t* dirent) {
    if(index > 16) {
       dirent->name[0] = '\0';
-      return 0;
+      return 1;
    }
 
    FatBpB_t* fatbpb = _parse_bpb(dev);
@@ -248,23 +248,23 @@ int fat_read_dir(Vfs_t* dev, uint32_t index, VfsDirent_t* dirent) {
    memcpy(dirent->name, entry->filename, 8);
 
    free(fatbpb); free(buffer);
-   return 1;
+   return 0;
 }
 
-int fat_find_dir(Vfs_t* fatfs, char* path, Vfs_t** target) {
+int fat_find_dir(Vfs_t* fatfs, char* path, Vfs_t* target) {
    if(fatfs->flag != VFS_FILESYSTEM)
-      return 0;
-   fat_file_create(*target, path, fatfs->master);
-   FatEntry_t* fe = _fat_get_filehandle(*target);
+      return 1;
+   fat_file_create(target, path, fatfs->master);
+   FatEntry_t* fe = _fat_get_filehandle(target);
    if(!fe) return 0;
-   _fat_node_create(*target, path, fatfs->master, fe);
+   _fat_node_create(target, path, fatfs->master, fe);
    free(fe);
-   return 1;
+   return 0;
 }
 
 int fat_dir_readdir(Vfs_t* dir, uint32_t index, VfsDirent_t* out) {
    if(dir->flag != VFS_DIRECTORY)
-      return 0;
+      return 1;
 
    FatEntry_t* fe = _fat_get_filehandle(dir);
    char* buffer = malloc(512);
@@ -275,12 +275,12 @@ int fat_dir_readdir(Vfs_t* dir, uint32_t index, VfsDirent_t* out) {
    memcpy(out->name, entry->filename, 8);
 
    free(buffer);
-   return 1;
+   return 0;
 }
 
-int fat_dir_finddir(Vfs_t* dir, char* filename, Vfs_t** target) {
+int fat_dir_finddir(Vfs_t* dir, char* filename, Vfs_t* target) {
    if(dir->flag != VFS_DIRECTORY)
-      return 0;
+      return 1;
 
    FatEntry_t* fe = _fat_get_filehandle(dir);
    char* buffer = malloc(512);
@@ -289,10 +289,10 @@ int fat_dir_finddir(Vfs_t* dir, char* filename, Vfs_t** target) {
    FatEntry_t *entry = _fat_get_filehandle_buffer(filename, buffer);
    if(!entry) {
       free(buffer);
-      return 0;
+      return 1;
    }
-   _fat_node_create(*target, entry->filename, dir->master, entry);
+   _fat_node_create(target, entry->filename, dir->master, entry);
    free(buffer);
-   return 1;
+   return 0;
 }
 

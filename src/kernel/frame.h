@@ -14,7 +14,7 @@ void frame_init(uint32_t, uint32_t);
 uint32_t frame_alloc_ex(uint32_t);
 #define frame_alloc() frame_alloc_ex(1) //ik...ik... but its for styling purposes
 void frame_free_ex(uint32_t, uint32_t);
-#define frame_free() frame_free_ex(1)
+#define frame_free(addr) frame_free_ex(addr, 1)
 
 uint32_t frame_count();
 uint32_t frame_max();

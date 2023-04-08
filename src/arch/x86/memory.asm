@@ -4,11 +4,10 @@ load_page_directory:
    ;load our page dir into cr3 reg
    mov eax, [esp + 4]
    mov cr3, eax
+   ret
 
-   mov eax, cr4
-   or eax, 0x00000010
-   mov cr4, eax
-
+global enable_paging
+enable_paging:
    mov ebx, cr0        ; read current cr0
    or  ebx, 0x80000001 ; set PG
    mov cr0, ebx        ; update cr0

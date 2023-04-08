@@ -7,6 +7,7 @@
 #include "../fs/vfs.h"
 
 const int syscall_cnt = SYSCALLS_COUNT;
+int retval = 0;
 
 typedef struct syscall_regs_t{
     uint32_t esp;
@@ -27,7 +28,7 @@ typedef struct syscall_regs_t{
    ebx: char* str
 */
 void sc_print(SyscallRegs_t regs) {
-   term_writestring(regs.ebx);
+   term_writestring((char*)regs.ebx);
 }
 
 /* eax 1: open: 
@@ -35,7 +36,7 @@ void sc_print(SyscallRegs_t regs) {
    ecx: Vfs_t** target
 */
 int sc_open(SyscallRegs_t regs) {
-   Vfs_t* node = fopen(regs.ebx);
+   Vfs_t* node = fopen((char*)regs.ebx);
    *(Vfs_t**)(regs.ecx) = node;
 
    if(!node)
@@ -59,7 +60,7 @@ int sc_close(SyscallRegs_t regs) {
 int sc_read(SyscallRegs_t regs) {
    Vfs_t* node = (Vfs_t*)regs.ebx;
    uint32_t size = regs.ecx;
-   char* buffer = regs.edx;
+   char* buffer = (char*)regs.edx;
 
    return vread(node, 0, size, buffer);
 }
@@ -91,9 +92,11 @@ int sc_readdir(SyscallRegs_t regs) {
 
    VfsDirent_t dirent;
    vread_dir(node, index, &dirent);
-   memcpy(dirent.name, *outname, outsize);
+   memcpy(dirent.name, outname, outsize);
+   return 0;
 }
 
+//TODO Fix
 /* eax 6: finddir
    ebx: Vfs* node
    ecx: char* name
@@ -104,7 +107,10 @@ int sc_finddir(SyscallRegs_t regs) {
    char* name = (char*)regs.ecx;
    Vfs_t** target = (Vfs_t**)regs.edx;
 
-   vfind_dir(node, name, target);
+   *target = malloc(sizeof(Vfs_t));
+   vfind_dir(node, name, *target);
+   vopen(*target);
+   return 0;
 }
 
 /* eax 7: kmalloc: 
@@ -116,14 +122,16 @@ int sc_kmalloc(SyscallRegs_t regs) {
    void** ptr = (void**)regs.ecx;
 
    (*ptr) = malloc(size);
+   return 0;
 }
 
 /* ext 8: kfree: 
    ebx: void* pointer_to_free
 */
-void sc_kfree(SyscallRegs_t regs) {
+int sc_kfree(SyscallRegs_t regs) {
    void* ptr = (void*)regs.ebx;
    free(ptr);
+   return 0;
 }
 
 /* ext 9: krealloc: 
@@ -131,13 +139,24 @@ void sc_kfree(SyscallRegs_t regs) {
    ecx: void* pointer_to_resize,
    edx: void** return_address
 */
-void* sc_realloc(SyscallRegs_t regs) {
+int sc_realloc(SyscallRegs_t regs) {
    size_t size = regs.ebx;
    void*  oldptr = (void*)regs.ecx;
    void** newptr = (void**)regs.edx;
 
    (*newptr) = realloc(oldptr, size);
+   return 0;
 }
+
+/* ext 10: sysc_status
+ * ebx: int* staus_of_last_syscall
+*/
+int sc_sysc_status(SyscallRegs_t regs) {
+   int* laststat = (int*)regs.ebx;
+   *laststat = retval;
+   return 0;
+}
+
 
 void *syscalls[SYSCALLS_COUNT] = {
    sc_print,
@@ -153,6 +172,8 @@ void *syscalls[SYSCALLS_COUNT] = {
    sc_kmalloc,
    sc_kfree,
    sc_realloc,
+
+   sc_sysc_status,
 };
 
 void syscall_dispatch(void);

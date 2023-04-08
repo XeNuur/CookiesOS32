@@ -4,7 +4,6 @@
 
 static uint32_t *frames = 0;
 static uint32_t frames_max = 0;
-
 uint32_t alloced_frames = 0;
 
 uint32_t frame_count() {
@@ -32,7 +31,6 @@ uint32_t frame_frist_free(uint32_t blocks_num) {
    uint32_t bi=0, bj=0; 
 
    for (uint32_t i = 0; i < frames_max / 32; i++) {
-       if (frames[i] != 0xFFFFFFFF) { // nothing free, exit early.
            for (uint32_t j = 0; j < 32; j++) { // at least one bit is free here.
                uint32_t toTest = 0x1 << j;
                if ( !(frames[i]&toTest) ) {
@@ -45,7 +43,7 @@ uint32_t frame_frist_free(uint32_t blocks_num) {
                }
                cnt = 0;
            }
-       }
+       
    }
    return -1;
 }

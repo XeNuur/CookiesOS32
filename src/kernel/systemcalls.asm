@@ -1,6 +1,8 @@
 global syscall_dispatch
+
 extern syscalls
 extern syscall_cnt;
+extern retval
 
 syscall_dispatch:
    ;Basic syscall system 
@@ -24,6 +26,7 @@ syscall_dispatch:
 
    ;Make a system call
    call [syscalls+eax*4]
+   mov [retval], eax
    add esp, 4
 
    pop ebx
@@ -41,3 +44,4 @@ syscall_dispatch:
    iretd
 .bad_opcode:
    iretd
+

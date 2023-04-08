@@ -39,7 +39,7 @@ int elf_stat(char* buffer, size_t size) {
    ElfProgramHeader_t *ph = (ElfProgramHeader_t*)(buffer + header->e_phoff);
    const int frames = 1;
 
-   void* phys_loc = frame_alloc_ex(frames);
+   uint32_t phys_loc = frame_alloc_ex(frames);
    for(int i=0; i<header->e_phnum; i++, ph++) {
       if(ph->p_type != 1) //load
          continue;
@@ -49,7 +49,7 @@ int elf_stat(char* buffer, size_t size) {
       */
 
       paging_map(ph->p_vaddr, phys_loc);
-      memcpy(ph->p_vaddr, buffer + ph->p_offset, ph->p_filesz);
+      memcpy((void*)ph->p_vaddr, buffer + ph->p_offset, ph->p_filesz);
    }
    int retcode = run_code((void*)header->e_entry);
    frame_free_ex(phys_loc, frames);
