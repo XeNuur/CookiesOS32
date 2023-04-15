@@ -21,7 +21,7 @@
 #include "../fs/devfs.h"
 #include "../fs/fat.h"
 
-#define COS_VER "2.6"
+#define COS_VER "2.6.5"
 
 char* mini_shell_prefix = ">> ";
 
@@ -36,7 +36,7 @@ void cls_prog(void) {
 
 char* devfstest_prog_name = "devfstest";
 void devfstest_prog(void) {
-   Vfs_t* handle = fopen("/BIN/");
+   Vfs_t* handle = fopen("/DEV/");
    if(!handle)
       return;
 
@@ -48,6 +48,7 @@ void devfstest_prog(void) {
        term_printf("(%x) %s\n", index, dirent.name);
        ++index;
    }
+   fclose(handle);
 }
 
 char* syscalltest_prog_name = "syscalltest";
@@ -57,6 +58,8 @@ char* fatreader_prog_name = "fat16tester";
 void fatreader_prog(void) {
    const size_t size = 0x2000;
    char* buffer = malloc(size);
+   if(!buffer)
+      return;
    
    Vfs_t* fat = fopen("/RES/MAFEST");
    if(!fat) {
@@ -65,10 +68,10 @@ void fatreader_prog(void) {
    }
    if(vread(fat, 0, size, buffer)) {
       yell("unable to read\n");
-      vclose(fat);
+      fclose(fat);
       goto ret_me;
    }
-   vclose(fat);
+   fclose(fat);
    term_printf("%s\n", buffer);
 ret_me:
    free(buffer);
@@ -106,6 +109,7 @@ void help_prog(void) {
 char* helloworld_prog_name = "helloworld";
 void helloworld_prog(void) {
         term_writestring("Hello, World!");
+        kheap_print_headers();
 }
 
 char* ataread_prog_name = "ataread";
@@ -263,6 +267,9 @@ int kernel_main(multiboot_info_t *mbi) {
         frame_init(frame_start_addr, frame_end_addr);
         paging_init();
 
+        void* ptr = malloc(0x800);
+        free(ptr);
+
 	term_writestring("[Init] Setting devices subsystem\n");
         vfs_init();
         devices_init();
@@ -280,8 +287,8 @@ int kernel_main(multiboot_info_t *mbi) {
 	term_writestring("\nWelcome to CookiesOS (ver. "COS_VER")!\n\n");
         term_setcolor(VGA_COLOR_LIGHT_GREY);
 
-        runinit_prog();
         mini_shell();
+        runinit_prog();
         return 0;
 }
 

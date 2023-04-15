@@ -116,10 +116,10 @@ int fat_file_read_with_handle(Vfs_t* file, FatEntry_t handle, uint32_t size, cha
 
    uint16_t current_cluster = handle.starting_cluster;
    uint32_t index = 0;
-   for(;;) {
+   while(current_cluster <= FAT16_EOF) {
       uint32_t data_sec = (root_lba+32);
       uint32_t lba_ctx = data_sec + (current_cluster-2) * fatbpb.SectorsPerCluster;
-
+      
       vread(file->master, lba_ctx, fatbpb.SectorsPerCluster, buffer);
 
       for(uint32_t i=0; i<buffer_size; i++) {
@@ -136,9 +136,6 @@ int fat_file_read_with_handle(Vfs_t* file, FatEntry_t handle, uint32_t size, cha
 
       vread(file->master, fat_sector, 1, buffer);
       current_cluster = *(uint16_t*)&buffer[ent_offset];
-
-      if(current_cluster >= FAT16_EOF)
-         break;
    }
    free(buffer);
    return 0;
@@ -246,12 +243,20 @@ int fat_read_dir(Vfs_t* dev, uint32_t index, VfsDirent_t* dirent) {
    uint32_t root_lba = fatbpb.NumberOfFats * fatbpb.SectorsPerFat + fatbpb.ReservedSectors;
    vread(dev->master, root_lba, 1, buffer);
 
-   int idx=index*32;
-   FatEntry_t *entry = (void*)(buffer + idx);
-   memcpy(dirent->name, entry->filename, 8);
+   int count = 0;
+   for(int i=0; i<16; ++i) {
+      int idx=i*32;
+      FatEntry_t *entry = (void*)(buffer + idx);
+
+      if(!entry->starting_cluster) continue;
+      if(!(count++ >= index))
+         continue;
+      memcpy(dirent->name, entry->filename, 8);
+      return 0;
+   }
 
    free(buffer);
-   return 0;
+   return 1;
 }
 
 int fat_find_dir(Vfs_t* fatfs, char* path, Vfs_t* target) {

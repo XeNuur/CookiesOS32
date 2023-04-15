@@ -12,10 +12,9 @@ void panic(char* msg, ...) {
    term_vprintf(msg, ap);
    va_end(ap);
 
-   term_writestring("\n\n...Halt...\n");
+   term_writestring("\n\n...FUCK YOU!\n");
 
    __asm__ volatile ("cli; hlt");
-   while(true){};
 }
 
 void yell(char* msg, ...) {

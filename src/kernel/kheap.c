@@ -25,13 +25,15 @@ KheapHeader _new_header(uint32_t size, KheapHeader* next) {
 }
 
 KheapHeader* _split_block(KheapHeader* header, size_t size) {
-   uint32_t new_size = header->size - size - sizeof(header);
+   int new_size = header->size - size - sizeof(KheapHeader);
    if(!(new_size > 0))
       return NULL;
-   KheapHeader *new_header = header + sizeof(header) + size;
-   *new_header = _new_header(new_size, header->next);
 
-   header->size -= new_size;
+   KheapHeader *new_header = (KheapHeader*)((void*)header + sizeof(KheapHeader) + size);
+   *new_header = _new_header(new_size, header->next);
+   new_header->freed = 1;
+
+   header->size = size;
    header->next = new_header;
 
    if(!new_header->next)
@@ -47,6 +49,7 @@ void* _find_good_block(size_t size, int reset_free_flag) {
          continue;
       if(next->size >= size) {
          next->freed = (reset_free_flag)?0:next->freed;
+         _split_block(next, size);
          return next; 
       }
    } while ((next = next->next));
@@ -58,7 +61,7 @@ void _merge_free_blocks() {
    KheapHeader* current = 0;
 
    do {
-      if(next->freed) {
+      if(!next->freed) {
          current = 0;
          continue;
       }
@@ -112,7 +115,7 @@ alloc_pages_end:
 void free(void* addr) {
    KheapHeader* hh_ptr = addr-sizeof(KheapHeader);
    if(hh_ptr->magic_number != MAGIC_KHEAP) {
-      yell("free(...): magic number mismatch");
+      yell("free(...): magic number mismatch (%x != %x)", hh_ptr->magic_number, MAGIC_KHEAP);
       return;
    }
    if(hh_ptr->freed)
@@ -126,5 +129,17 @@ void* realloc(void* addr, size_t size) {
    memcpy(new_addr, addr, size);
    free(addr);
    return new_addr;
+}
+
+void kheap_print_headers() {
+   KheapHeader* next = frist_hh;
+
+   do {
+      term_printf("\n[addr %x (real: %x) ]:\n", next, next+sizeof(KheapHeader));
+      term_printf("size: %x\n", next->size);
+
+      char* freed_msg = (next->freed)?"Yes":"No";
+      term_printf("freed: %s\n", freed_msg);
+   } while ((next = next->next));
 }
 

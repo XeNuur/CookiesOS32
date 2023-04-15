@@ -16,3 +16,4 @@ void* malloc(size_t size);
 void* realloc(void*, size_t size);
 void free(void*);
 
+void kheap_print_headers();
