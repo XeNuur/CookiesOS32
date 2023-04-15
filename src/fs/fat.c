@@ -9,15 +9,13 @@
 
 #define FAT_MAX_SUBNAME (16)
 
-FatBpB_t *_parse_bpb(Vfs_t *dev) {
+int _parse_bpb(Vfs_t *dev, FatBpB_t *bpb) {
    char* buffer = malloc(512);
    vread(dev, 0, 1, buffer);
 
-   FatBpB_t *fatbpb = malloc(sizeof(FatBpB_t));
-   memcpy(fatbpb, buffer+3, sizeof(FatBpB_t));
-
+   memcpy(bpb, buffer+3, sizeof(FatBpB_t));
    free(buffer);
-   return fatbpb;
+   return 0;
 }
 
 int fat_check(Vfs_t* device) {
@@ -90,55 +88,59 @@ FatEntry_t *_fat_get_filehandle_buffer(char* path, char* b512) {
 }
 
 FatEntry_t *_fat_get_filehandle_rootdir(Vfs_t* dev, char* path) {
-   FatBpB_t* fatbpb = _parse_bpb(dev);
+   FatBpB_t fatbpb;
+   _parse_bpb(dev, &fatbpb);
    uint8_t* buffer = malloc(512);
 
-   uint32_t root_lba = fatbpb->NumberOfFats * fatbpb->SectorsPerFat + fatbpb->ReservedSectors;
+   uint32_t root_lba = fatbpb.NumberOfFats * fatbpb.SectorsPerFat + fatbpb.ReservedSectors;
    vread(dev, root_lba, 1, buffer);
    FatEntry_t* result_ptr = _fat_get_filehandle_buffer(path, buffer);
 
    FatEntry_t* status = malloc(sizeof(FatEntry_t));
    memcpy(status, result_ptr, sizeof(FatEntry_t));
 
-   free(fatbpb); free(buffer);
+   free(buffer);
    return status;
 }
 
-int fat_file_read_with_handle(Vfs_t* file, FatEntry_t *handle, uint32_t size, char* ptr) {
+int fat_file_read_with_handle(Vfs_t* file, FatEntry_t handle, uint32_t size, char* ptr) {
    if(!(file->flag == VFS_FILE || file->flag == VFS_DIRECTORY))
       return 1;
-   if(!handle) return 1;
 
-   FatBpB_t* fatbpb = _parse_bpb(file->master);
-   uint32_t root_lba = fatbpb->NumberOfFats * fatbpb->SectorsPerFat + fatbpb->ReservedSectors;
-   uint8_t* buffer = malloc(512);
-   uint16_t current_cluster = handle->starting_cluster;
+   FatBpB_t fatbpb;
+   _parse_bpb(file->master, &fatbpb);
+   uint32_t root_lba = fatbpb.NumberOfFats * fatbpb.SectorsPerFat + fatbpb.ReservedSectors;
 
+   uint32_t buffer_size = 512 * fatbpb.SectorsPerCluster;
+   uint8_t* buffer = malloc(buffer_size);
+
+   uint16_t current_cluster = handle.starting_cluster;
    uint32_t index = 0;
-
    for(;;) {
       uint32_t data_sec = (root_lba+32);
-      uint32_t lba_ctx = data_sec + (current_cluster-2) * fatbpb->SectorsPerCluster;
-      vread(file->master, lba_ctx, 1, buffer);
+      uint32_t lba_ctx = data_sec + (current_cluster-2) * fatbpb.SectorsPerCluster;
 
-      for(uint32_t i=0; i<512; i++) {
+      vread(file->master, lba_ctx, fatbpb.SectorsPerCluster, buffer);
+
+      for(uint32_t i=0; i<buffer_size; i++) {
          ptr[index] = ((char*)buffer)[i];
          index++;
          if(index > size)
             break;
       }
+      uint32_t frist_fat = fatbpb.ReservedSectors;
 
-      uint32_t frist_fat = fatbpb->SectorsPerFat+fatbpb->ReservedSectors;
       uint32_t fat_offset = current_cluster * 2;
-      uint32_t fat_sector = frist_fat + (fat_offset / fatbpb->BytesPerSector);
-      uint32_t ent_offset = fat_offset % fatbpb->BytesPerSector;
+      uint32_t fat_sector = frist_fat + (fat_offset / fatbpb.BytesPerSector);
+      uint32_t ent_offset = fat_offset % fatbpb.BytesPerSector;
+
       vread(file->master, fat_sector, 1, buffer);
       current_cluster = *(uint16_t*)&buffer[ent_offset];
 
       if(current_cluster >= FAT16_EOF)
          break;
    }
-   free(fatbpb); free(buffer);
+   free(buffer);
    return 0;
 }
 
@@ -184,20 +186,21 @@ int _fat_basename(char* path, char** target) {
    return i;
 }
 
-FatEntry_t* _fat_get_filehandle(Vfs_t* file) {
+int _fat_get_filehandle(Vfs_t* file, FatEntry_t* retent) {
    char *nodename = strtok(file->name, '/');
    char* buffer = malloc(512);
 
    FatEntry_t* result = _fat_get_filehandle_rootdir(file->master, nodename);
-   if(!result) return 0;
+   if(!result) 
+      return 1;
    FatEntry_t *entry = result;
-   FatEntry_t *retval = 0;
+   int status = 1;
    
    if(result->attributes != 0x10) {
       free(nodename);
       goto success_break;
    }
-   fat_file_read_with_handle(file, result, 512, buffer);
+   fat_file_read_with_handle(file, *result, 512, buffer);
 
    while(nodename != NULL) {
       free(nodename);
@@ -210,24 +213,24 @@ FatEntry_t* _fat_get_filehandle(Vfs_t* file) {
       } 
       if(entry->attributes != 0x10) {
          free(nodename);
-         goto success_break;
+         break;
       }
-      fat_file_read_with_handle(file, entry, 512, buffer);
+      fat_file_read_with_handle(file, *entry, 512, buffer);
    }
 success_break:
-   retval = malloc(sizeof(FatEntry_t));
-   memcpy(retval, entry, sizeof(FatEntry_t));
+   memcpy(retent, entry, sizeof(FatEntry_t));
+   status = 0;
 fully_break:
    free(buffer);
    free(result);
-   return retval;
+   return status;
 }
 
 int fat_file_read(Vfs_t* file, uint32_t offset, uint32_t size, char* ptr) {
-   FatEntry_t* fe = _fat_get_filehandle(file);
-   if(!fe) return 1;
+   FatEntry_t fe;
+   if(_fat_get_filehandle(file, &fe)) 
+      return 1;
    fat_file_read_with_handle(file, fe, size, ptr);
-   free(fe);
    return 0;
 }
 
@@ -236,37 +239,40 @@ int fat_read_dir(Vfs_t* dev, uint32_t index, VfsDirent_t* dirent) {
       dirent->name[0] = '\0';
       return 1;
    }
-
-   FatBpB_t* fatbpb = _parse_bpb(dev);
+   FatBpB_t fatbpb;
+   int a = _parse_bpb(dev->master, &fatbpb);
    uint8_t* buffer = malloc(512);
 
-   uint32_t root_lba = fatbpb->NumberOfFats * fatbpb->SectorsPerFat + fatbpb->ReservedSectors;
-   vread(dev, root_lba, 1, buffer);
+   uint32_t root_lba = fatbpb.NumberOfFats * fatbpb.SectorsPerFat + fatbpb.ReservedSectors;
+   vread(dev->master, root_lba, 1, buffer);
 
    int idx=index*32;
    FatEntry_t *entry = (void*)(buffer + idx);
    memcpy(dirent->name, entry->filename, 8);
 
-   free(fatbpb); free(buffer);
+   free(buffer);
    return 0;
 }
 
 int fat_find_dir(Vfs_t* fatfs, char* path, Vfs_t* target) {
    if(fatfs->flag != VFS_FILESYSTEM)
-      return 1;
+      return -2;
    fat_file_create(target, path, fatfs->master);
-   FatEntry_t* fe = _fat_get_filehandle(target);
-   if(!fe) return 0;
-   _fat_node_create(target, path, fatfs->master, fe);
-   free(fe);
+
+   FatEntry_t fe;
+   if(_fat_get_filehandle(target, &fe))
+      return 1;
+   _fat_node_create(target, path, fatfs->master, &fe);
    return 0;
 }
 
 int fat_dir_readdir(Vfs_t* dir, uint32_t index, VfsDirent_t* out) {
    if(dir->flag != VFS_DIRECTORY)
+      return -2;
+   FatEntry_t fe;
+   if(_fat_get_filehandle(dir, &fe))
       return 1;
 
-   FatEntry_t* fe = _fat_get_filehandle(dir);
    char* buffer = malloc(512);
    fat_file_read_with_handle(dir, fe, 512, buffer);
 
@@ -280,19 +286,22 @@ int fat_dir_readdir(Vfs_t* dir, uint32_t index, VfsDirent_t* out) {
 
 int fat_dir_finddir(Vfs_t* dir, char* filename, Vfs_t* target) {
    if(dir->flag != VFS_DIRECTORY)
+      return -2;
+
+   FatEntry_t fe;
+   if(!_fat_get_filehandle(dir, &fe))
       return 1;
 
-   FatEntry_t* fe = _fat_get_filehandle(dir);
    char* buffer = malloc(512);
    fat_file_read_with_handle(dir, fe, 512, buffer);
 
    FatEntry_t *entry = _fat_get_filehandle_buffer(filename, buffer);
    if(!entry) {
-      free(buffer);
+      free(buffer); 
       return 1;
    }
    _fat_node_create(target, entry->filename, dir->master, entry);
-   free(buffer);
+   free(buffer); 
    return 0;
 }
 

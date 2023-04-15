@@ -7,12 +7,12 @@
 typedef struct kheap_header_t{
    uint32_t magic_number;
    uint32_t size;
-   uint8_t freed;
+   int freed;
 
    struct kheap_header_t* next;
-   uint32_t zero;
 } KheapHeader;
 
 void* malloc(size_t size);
 void* realloc(void*, size_t size);
 void free(void*);
+

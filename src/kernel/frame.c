@@ -2,7 +2,9 @@
 #include "panic.h"
 #include <string.h>
 
-static uint32_t *frames = 0;
+extern uint32_t krnl_end;
+
+static uint32_t *frames = (uint32_t*)&krnl_end;
 static uint32_t frames_max = 0;
 uint32_t alloced_frames = 0;
 

@@ -23,11 +23,6 @@
 
 #define COS_VER "2.6"
 
-int exec_code(void* addr) {
-   int (*code_fn)() = addr;
-   return code_fn();
-}
-
 char* mini_shell_prefix = ">> ";
 
 void* shell_prog_ptr[255];
@@ -41,14 +36,14 @@ void cls_prog(void) {
 
 char* devfstest_prog_name = "devfstest";
 void devfstest_prog(void) {
-   Vfs_t* handle = fopen("/DEV/");
+   Vfs_t* handle = fopen("/BIN/");
    if(!handle)
       return;
 
    uint32_t index = 0;
    for(;;) {
        VfsDirent_t dirent;
-       if(!vread_dir(handle, index, &dirent))
+       if(vread_dir(handle, index, &dirent))
           break;
        term_printf("(%x) %s\n", index, dirent.name);
        ++index;
@@ -60,14 +55,15 @@ void syscalltest_prog(void);
 
 char* fatreader_prog_name = "fat16tester";
 void fatreader_prog(void) {
-   char* buffer = malloc(256);
+   const size_t size = 0x2000;
+   char* buffer = malloc(size);
    
    Vfs_t* fat = fopen("/RES/MAFEST");
    if(!fat) {
       yell("cannot find file\n");
       goto ret_me;
    }
-   if(vread(fat, 0, 256, buffer)) {
+   if(vread(fat, 0, size, buffer)) {
       yell("unable to read\n");
       vclose(fat);
       goto ret_me;
@@ -80,7 +76,7 @@ ret_me:
 
 char* runinit_prog_name = "init";
 void runinit_prog(void) {
-   term_writestring("Starting initial binnary!\n");
+   term_writestring("Starting /BIN/INIT!\n");
    char* buffer = malloc(0x1000);
    
    Vfs_t* fat = fopen("/BIN/INIT");
@@ -145,7 +141,7 @@ void malloctest_prog(void) {
 char* crashme_prog_name = "crashme";
 void crashme_prog(void) {
    term_writestring("You asked for it!");
-   size_t size = 0x500;
+   size_t size = 0x100;
 
    int i = 0;
    for(;;) {
@@ -228,7 +224,7 @@ int kernel_main(multiboot_info_t *mbi) {
 	term_writestring("Starting this junk up!\n");
         term_setcolor(VGA_COLOR_CYAN);
 
-	term_writestring("[Init] Getting memory map\n");
+	term_writestring("[Init] Cheaking for memory map\n");
         term_setcolor(VGA_COLOR_LIGHT_CYAN);
         if(!(mbi->flags >> 6 & 0x1)) {
             yell("invalid memory map given by GRUB'en");
@@ -238,22 +234,7 @@ int kernel_main(multiboot_info_t *mbi) {
         uint32_t frame_end_addr = frame_part->addr + frame_part->len;
         if(frame_end_addr < frame_start_addr)
            panic("Invalid memory region part propotions (invalid grub memory map?)");
-        term_printf("UPPER MEM SIZE: %x \n", mbi->mem_upper);
-        term_printf("LOWER MEM SIZE: %x \n", mbi->mem_lower);
-
-        term_writestring("MEM MAP: \n");
-        for(int i=0; i < mbi->mmap_length; i+= sizeof(multiboot_memory_map_t)) {
-            multiboot_memory_map_t* mmm = (multiboot_memory_map_t*)(mbi->mmap_addr+i);
-
-            uint32_t addr = mmm->addr;
-            uint32_t len = mmm->len;
-            uint32_t size = mmm->size;
-            uint32_t type = mmm->type;
-
-            term_printf("Start: %x | Len: %x | Size: %x | Type %x \n", 
-                  addr, len, size, type
-            );
-        }
+        term_printf("MEM SIZE: %x \n", mbi->mem_upper);
         term_setcolor(VGA_COLOR_CYAN);
 
 	term_writestring("[Init] Loading GDT\n");
@@ -269,7 +250,7 @@ int kernel_main(multiboot_info_t *mbi) {
         set_idt_gate(0xD, exception_general_protection_fault, TRAP_GATE_FLAGS);
         set_idt_gate(14, exception_page_fault, TRAP_GATE_FLAGS);
 
-	term_writestring("[Init] Configurating PIC...\n");
+	term_writestring("[Init] Setting up interrupts\n");
         pic_disable();
         pic_init();
 
@@ -277,7 +258,6 @@ int kernel_main(multiboot_info_t *mbi) {
         set_idt_gate(pic_loc, interrupt_pit_timer, INT_GATE_FLAGS);
         pic_IRQ_remove_mask(0); //timer
         pic_IRQ_remove_mask(2); // slave PIC chip
-	term_writestring("[Init] Setting up interrupts\n");
 
 	term_writestring("[Init] Enable paging\n");
         frame_init(frame_start_addr, frame_end_addr);
@@ -287,19 +267,17 @@ int kernel_main(multiboot_info_t *mbi) {
         vfs_init();
         devices_init();
 
-	term_writestring("[Init] Installing ATA driver\n");
         uint32_t dev_id = ata_init(pic_loc);
         term_init_device();
 
         vmount_device(devices_at(dev_id), "/", 0);
         mount_devfs_device("/DEV/");
 
-	term_writestring("[Init] Installing Keyboard driver\n");
         kb_init(pic_loc);
         x86_int_on();
 
         term_setcolor(VGA_COLOR_LIGHT_GREEN);
-	term_writestring("\nWelcome to CookiesOS (kernel ver."COS_VER")!\n");
+	term_writestring("\nWelcome to CookiesOS (ver. "COS_VER")!\n\n");
         term_setcolor(VGA_COLOR_LIGHT_GREY);
 
         runinit_prog();

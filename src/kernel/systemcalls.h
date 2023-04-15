@@ -82,7 +82,7 @@ int sc_write(SyscallRegs_t regs) {
    ebx: Vfs* node,
    ecx: u32 index
    edx: char* outname 
-   esi: u32 outsize
+   esi: u32 outsize -> max: 255
 */
 int sc_readdir(SyscallRegs_t regs) {
    Vfs_t* node = (Vfs_t*)regs.ebx;
@@ -91,9 +91,10 @@ int sc_readdir(SyscallRegs_t regs) {
    uint32_t outsize = regs.esi;
 
    VfsDirent_t dirent;
-   vread_dir(node, index, &dirent);
-   memcpy(dirent.name, outname, outsize);
-   return 0;
+   int status = vread_dir(node, index, &dirent);
+   memcpy(outname, dirent.name, outsize);
+
+   return status;
 }
 
 //TODO Fix

@@ -19,13 +19,11 @@ Vfs_t* fopen(char* path) {
    MountInfo_t info = mount_points[mnt_i];
 
    if(strlen(path) <= strlen(info.path)) {
-      free(file);
-      return info.device->master;
+      memcpy(file, info.device->master, sizeof(Vfs_t));
+      return file;
    }
    char* real_path = path+strlen(info.path);
-   int status = vfind_dir((info.device)->master, real_path, file);
-
-   if(status) {
+   if(vfind_dir((info.device)->master, real_path, file)) {
       free(file);
       return NULL;
    }

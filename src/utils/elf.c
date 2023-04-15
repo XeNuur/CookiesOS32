@@ -37,7 +37,7 @@ int elf_stat(char* buffer, size_t size) {
    }
 
    ElfProgramHeader_t *ph = (ElfProgramHeader_t*)(buffer + header->e_phoff);
-   const int frames = 1;
+   const int frames = 3;
 
    uint32_t phys_loc = frame_alloc_ex(frames);
    for(int i=0; i<header->e_phnum; i++, ph++) {

@@ -20,40 +20,81 @@ KheapHeader _new_header(uint32_t size, KheapHeader* next) {
       .size = size,
       .freed = 0,
       .next = next,
-
-      .zero = 0,
    };
    return heap;
 }
 
-void* _find_good_block(size_t size, int reset_free_flag) {
-   KheapHeader* current = frist_hh;
-   for(;;) {
-      if(current->freed && current->size >= size) {
-         current->freed = (reset_free_flag)?0:current->freed;
-         return current; 
-      }
+KheapHeader* _split_block(KheapHeader* header, size_t size) {
+   uint32_t new_size = header->size - size - sizeof(header);
+   if(!(new_size > 0))
+      return NULL;
+   KheapHeader *new_header = header + sizeof(header) + size;
+   *new_header = _new_header(new_size, header->next);
 
-      if(!current->next)
-         return 0;
-      current = current->next;
-   }
+   header->size -= new_size;
+   header->next = new_header;
+
+   if(!new_header->next)
+      last_hh = new_header;
+   return new_header;
+}
+
+void* _find_good_block(size_t size, int reset_free_flag) {
+   KheapHeader* next = frist_hh;
+
+   do {
+      if(!next->freed)
+         continue;
+      if(next->size >= size) {
+         next->freed = (reset_free_flag)?0:next->freed;
+         return next; 
+      }
+   } while ((next = next->next));
+   return 0;
+}
+
+void _merge_free_blocks() {
+   KheapHeader* next = frist_hh;
+   KheapHeader* current = 0;
+
+   do {
+      if(next->freed) {
+         current = 0;
+         continue;
+      }
+      if(!current) {
+         current = next;
+         continue;
+      }
+      
+      current->size += next->size + sizeof(KheapHeader);
+      current->next = next->next;
+   } while((next = next->next));
+
+   if(current)
+      last_hh = current;
 }
 
 
 void* malloc(size_t size) {
    uint32_t abs_size = size;
    uint32_t* addr = curr_addr;
-   if(!frist_hh)
-      goto create_new_header;
+   if(frist_hh) {
+      void* found_addr = _find_good_block(size, 1);
+      if(found_addr)
+         return found_addr+sizeof(KheapHeader);
+   }
+/*
+   uint32_t pages_needed = 1;
+   pages_needed += size/PAGE_SIZE;
 
-   void* found_addr = _find_good_block(size, 1);
-   if(found_addr)
-      return found_addr+sizeof(KheapHeader);
+   for(int i=0; i<pages_needed; ++i) {
+      paging_map((uint32_t)(curr_addr+i*PAGE_SIZE), frame_alloc());
+      max_page_addr += PAGE_SIZE;
+   }
+*/
 
-create_new_header:
    *(KheapHeader*)curr_addr = _new_header(size, 0);
-
    if(!frist_hh) {
       frist_hh = (KheapHeader*)curr_addr;
       last_hh = (KheapHeader*)curr_addr;
@@ -61,19 +102,9 @@ create_new_header:
       last_hh->next = (KheapHeader*)curr_addr;
       last_hh = (KheapHeader*)curr_addr;
    }
-
    abs_size += sizeof(KheapHeader);
 
-   if(addr+size < max_page_addr)
-      goto alloc_pages_end;
-   size_t page_num = ((size + sizeof(KheapHeader))/PAGE_SIZE);
-   for(int i=0; i<page_num; ++i)
-      paging_map((uint32_t)(curr_addr+i*PAGE_SIZE), frame_alloc());
-
-   uint32_t *eof_page_addr = page_num*PAGE_SIZE;
-   max_page_addr += page_num*PAGE_SIZE;
 alloc_pages_end:
-
    curr_addr += abs_size;
    return (void*)addr+sizeof(KheapHeader);
 }
@@ -87,6 +118,7 @@ void free(void* addr) {
    if(hh_ptr->freed)
       yell("free(...): double free detected!");
    hh_ptr->freed = 1;
+   _merge_free_blocks();
 }
 
 void* realloc(void* addr, size_t size) {
